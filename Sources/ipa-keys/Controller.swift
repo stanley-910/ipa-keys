@@ -12,8 +12,8 @@ final class Controller {
     private var keymap: KeyMap
     private var enabled: Bool
     private var frontApp = ""
-    /// Key codes whose key-down we kept from the app: keep the key-up too.
-    private var swallowedUps: Set<CGKeyCode> = []
+    /// Presses we keep from the app, through repeats to key-up.
+    private var presses = PressTracker()
     /// After an Option key, which may be a dead key (Option-E then e makes
     /// é in the app), the next character is not what the app shows.
     private var afterOption = false
@@ -46,6 +46,15 @@ final class Controller {
 
     /// Something moved the cursor or changed focus.
     func reset() { lock.withLock { engine.reset(); afterOption = false } }
+
+    /// The tap was off for a while: key-ups may have been missed.
+    func interrupted() {
+        lock.withLock {
+            engine.reset()
+            afterOption = false
+            presses.clear()
+        }
+    }
 
     func appChanged(_ bundleID: String) {
         lock.withLock {
@@ -82,7 +91,7 @@ final class Controller {
             return false
         case .keyUp:
             let code = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
-            return swallowedUps.remove(code) != nil
+            return presses.up(code)
         case .keyDown:
             return keyDown(event)
         default:
@@ -94,10 +103,13 @@ final class Controller {
         let code = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
         let mods = Controller.modifiers(event.flags)
         let repeating = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        // A repeat of a press we kept stays kept, even if the modifiers
+        // were let go meanwhile.
+        if presses.down(code, isRepeat: repeating) { return true }
         if paused { return false }
 
         if let t = config.toggle, keymap.code(for: t.key) == code, mods == t.modifiers {
-            swallowedUps.insert(code)
+            presses.claim(code)
             if !repeating {
                 enabled.toggle()
                 engine.reset()
@@ -108,7 +120,7 @@ final class Controller {
             return true
         }
         if let t = config.symbols, keymap.code(for: t.key) == code, mods == t.modifiers {
-            swallowedUps.insert(code)
+            presses.claim(code)
             if !repeating {
                 engine.reset()
                 DispatchQueue.main.async { self.onSymbols?() }
@@ -123,7 +135,7 @@ final class Controller {
                 Log.write("chord \(key) ignored: secure input is on")
                 return false
             }
-            swallowedUps.insert(code)
+            presses.claim(code)
             if repeating { return true }
             let mode: DeleteMode = config.codePointApps.contains(frontApp) ? .codePoints
                 : config.terminalApps.contains(frontApp) ? .terminal : .select
@@ -154,7 +166,7 @@ final class Controller {
             Log.write("\(d.note) ignored: secure input is on")
             return false
         }
-        swallowedUps.insert(code)
+        presses.claim(code)
         act(d, mode: .codePoints)
         return true
     }

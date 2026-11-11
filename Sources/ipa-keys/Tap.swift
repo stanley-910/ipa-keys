@@ -50,7 +50,7 @@ final class Tap {
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             Log.write("event tap was disabled (\(type == .tapDisabledByTimeout ? "timeout" : "user input")); re-enabling")
-            controller.reset()
+            controller.interrupted()
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
