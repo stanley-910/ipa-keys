@@ -19,13 +19,16 @@ if CommandLine.arguments.dropFirst().first == "--check" {
 }
 
 /// `ipa-keys --missing-defaults`: list what the built-in defaults have that
-/// the config file lacks (new symbols from an update), as lines to paste.
+/// the config file (or FILE) lacks, e.g. new symbols from an update, as
+/// lines to paste.
 if CommandLine.arguments.dropFirst().first == "--missing-defaults" {
-    guard let text = try? String(contentsOf: App.configURL, encoding: .utf8) else { exit(0) }
+    let url = CommandLine.arguments.count > 2 ? URL(fileURLWithPath: CommandLine.arguments[2]) : App.configURL
+    guard let text = try? String(contentsOf: url, encoding: .utf8) else { exit(0) }
     let lines = missingDefaults(in: Config.parse(text))
     if !lines.isEmpty {
-        print("The default config has \(lines.count) things yours lacks. To add any, open Edit Config")
-        print("and paste the line under the section shown (your own lines stay as they are):")
+        print("The default config has symbols or names yours lacks. To add them, open Edit Config")
+        print("and copy each line below into the section above it (lines starting with # explain):")
+        print("")
         for l in lines { print("  " + l) }
     }
     exit(0)

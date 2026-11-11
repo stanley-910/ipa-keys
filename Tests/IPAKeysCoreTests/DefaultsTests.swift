@@ -37,9 +37,12 @@ struct DefaultsTests {
         null = ∅
         """)
         #expect(missingDefaults(in: old, defaults: defaults) == [
-            "[groups] w = ɯ ʍ ɰ   (yours: ɯ ʍ)",
-            "[groups] comma = ◌̥",
-            "[names] null = ∅",
+            "[groups]",
+            "# replace your line w = ɯ ʍ with:",
+            "w = ɯ ʍ ɰ",
+            "comma = ◌̥",
+            "[names]",
+            "null = ∅",
         ])
     }
 
@@ -49,5 +52,30 @@ struct DefaultsTests {
         let mine = Config.parse("[groups]\nw = ɯ\nk = ʍ\n[names]\nempty = ∅\n")
         let defaults = Config.parse("[groups]\nw = ɯ ʍ\n[names]\nnull = ∅\n")
         #expect(missingDefaults(in: mine, defaults: defaults) == [])
+    }
+}
+
+struct PasteableDefaultsTests {
+    /// Pasted into the file as printed (indented, as the script shows it),
+    /// with the user's old w line replaced as the comment says, the result
+    /// parses cleanly and has everything.
+    @Test func outputParsesAndFillsTheGaps() {
+        let mine = "[settings]\nprefix = ;\n[groups]\nw = ɯ ʍ\n2 = ʔ ʕ\n[names]\nschwa = ə\n"
+        let block = missingDefaults(in: Config.parse(mine))
+        let snippet = Config.parse(block.map { "  " + $0 }.joined(separator: "\n"))
+        #expect(snippet.warnings == [])
+        #expect(snippet.groups["w"] == ["ɯ", "ʍ", "ɰ"])
+        #expect(snippet.groups["2"] == ["ʔ", "ʕ", "ʡ", "ʢ"])
+        #expect(snippet.groups[","] != nil)
+        #expect(snippet.names["null"] == "∅")
+        // Every line is a header, a comment, or a key = value line.
+        for line in block {
+            #expect(line.hasPrefix("[") || line.hasPrefix("#") || line.contains(" = "), "\(line)")
+            #expect(!line.contains("yours:") || line.hasPrefix("#"))
+        }
+    }
+
+    @Test func nothingMissingPrintsNothing() {
+        #expect(missingDefaults(in: ConfigTests.defaults).isEmpty)
     }
 }
