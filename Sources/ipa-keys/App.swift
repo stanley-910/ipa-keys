@@ -26,7 +26,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ note: Notification) {
         Log.open()
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
-        Log.write("ipa-keys \(version) starting (pid \(getpid()), \(Bundle.main.bundlePath))")
+        let commit = Bundle.main.object(forInfoDictionaryKey: "IPAKeysCommit") as? String ?? "unknown commit"
+        Log.write("ipa-keys \(version) (\(commit)) starting (pid \(getpid()), \(Bundle.main.bundlePath))")
         if let id = Bundle.main.bundleIdentifier,
            NSRunningApplication.runningApplications(withBundleIdentifier: id).contains(where: { $0.processIdentifier != getpid() }) {
             Log.write("another ipa-keys is already running; quitting so symbols are not typed twice")
@@ -182,6 +183,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             i.target = self
             menu.addItem(i)
         }
+        if App.updateScript != nil {
+            let i = NSMenuItem(title: "Update…", action: #selector(update), keyEquivalent: "")
+            i.target = self
+            menu.addItem(i)
+        }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         item.menu = menu
@@ -229,6 +235,24 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func openAccessibility() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
+        }
+    }
+
+    /// The source checkout's update script, recorded at build time.
+    static var updateScript: URL? {
+        guard let root = Bundle.main.object(forInfoDictionaryKey: "IPAKeysSource") as? String else { return nil }
+        let url = URL(fileURLWithPath: root).appendingPathComponent("scripts/update.sh")
+        return FileManager.default.isExecutableFile(atPath: url.path) ? url : nil
+    }
+
+    /// Runs update.sh in a Terminal window: it shows the result, can ask for
+    /// a password, and is not stopped when the install restarts ipa-keys.
+    @objc private func update() {
+        guard let script = App.updateScript else { return }
+        let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+        Log.write("update: opening \(script.path) in Terminal")
+        NSWorkspace.shared.open([script], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+            if let error { Log.write("update: could not open Terminal: \(error.localizedDescription)") }
         }
     }
 

@@ -8,7 +8,24 @@ DEST="$HOME/Applications/ipa-keys.app"
 LABEL="cc.stanleywang.ipa-keys"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 STATE="$HOME/.local/state/ipa-keys"
-[ "${1:-}" = "--no-build" ] || "$ROOT/scripts/build-app.sh"
+if [ "${1:-}" != "--no-build" ]; then
+  if ! xcode-select -p >/dev/null 2>&1 || ! xcrun --find swift >/dev/null 2>&1; then
+    echo "Apple's command line tools are missing. Run this, finish the window it opens, then try again:" >&2
+    echo "  xcode-select --install" >&2
+    exit 1
+  fi
+  # A signing certificate keeps the Accessibility grant across updates.
+  # Making one may show a macOS password prompt for the keychain.
+  if [ -z "${IPA_KEYS_SIGN_IDENTITY:-}" ] \
+     && ! security find-identity -v -p codesigning 2>/dev/null | grep -qE '"(ipa-keys-dev|dictate-dev)"'; then
+    echo "making a signing certificate (macOS may ask for your login password)"
+    "$ROOT/scripts/make-cert.sh" || {
+      echo "could not make the certificate; installing without it. To fix, run:" >&2
+      echo "  $ROOT/scripts/make-cert.sh" >&2
+    }
+  fi
+  "$ROOT/scripts/build-app.sh"
+fi
 [ -d "$SRC" ] || { echo "missing $SRC" >&2; exit 1; }
 mkdir -p "$HOME/Applications" "$HOME/Library/LaunchAgents" "$STATE"
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true

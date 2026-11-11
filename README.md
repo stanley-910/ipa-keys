@@ -14,24 +14,44 @@ works, plus typed names. It is one small menu bar app with no other tools needed
   name is complete: `;schwa` gives ə, `;e1` gives ə (the first symbol under
   E), and `u;extrashort` gives ŭ.
 
-The menu bar item (ə) has **Enabled**, **Edit Config**, **Reload** and **Quit**.
+The menu bar item (ə) has **Enabled**, **Edit Config**, **Reload**, **Update…** and **Quit**.
 It greys out when ipa-keys is off, has no permission, or a password field has
 the keyboard.
 
-## Install
+## Install (first time)
+
+1. Open **Terminal** and install Apple's command line tools (skip if you
+   have Xcode): `xcode-select --install`, then follow the window that opens.
+2. Download ipa-keys: `git clone https://github.com/stanley-910/ipa-keys.git ~/ipa-keys`
+3. Install it: `~/ipa-keys/scripts/install.sh`. The first time, this makes
+   a signing certificate, and macOS may ask for your login password.
+4. Allow it: **System Settings > Privacy & Security > Accessibility**, turn on
+   **ipa-keys** (click **+** and choose `~/Applications/ipa-keys.app` if it is
+   not listed). The **ə** in the menu bar stops being grey.
+
+## Update
+
+1. Click **ə** in the menu bar, then **Update…**. Or in Terminal run
+   `~/ipa-keys/scripts/update.sh`.
+2. Read the last lines in the window. They say which version is now running,
+   or, in plain words, why the update stopped. Your settings file is never
+   changed by an update.
+
+## Install details
 
 ```sh
 scripts/install.sh
 ```
 
-This builds a release binary, makes `~/Applications/ipa-keys.app`, signs it,
-and loads a LaunchAgent (`cc.stanleywang.ipa-keys`) that starts it at login
+`scripts/install.sh` checks for the command line tools, builds a release
+binary, makes `~/Applications/ipa-keys.app`, signs it, and loads a LaunchAgent (`cc.stanleywang.ipa-keys`) that starts it at login
 and restarts it if it crashes (not if you quit it).
 
 Signing: a stable certificate keeps the Accessibility grant across rebuilds.
 `build-app.sh` uses `$IPA_KEYS_SIGN_IDENTITY`, otherwise `ipa-keys-dev`,
-otherwise `dictate-dev`. Run `scripts/make-cert.sh` once to create
-`ipa-keys-dev`. With no certificate the app is signed ad hoc, and macOS asks
+otherwise `dictate-dev`. When neither exists, `install.sh` runs
+`scripts/make-cert.sh` to create `ipa-keys-dev`; if that fails it says so and
+prints the command to run. With no certificate the app is signed ad hoc, and macOS asks
 for Accessibility again after every build.
 
 ## Permission
