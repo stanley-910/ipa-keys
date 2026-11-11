@@ -120,3 +120,27 @@ struct ConfigTests {
         #expect(c.warnings.count == 1)
     }
 }
+
+struct ChordValidationTests {
+    /// The file gets the same rule as Settings: Shift alone would turn
+    /// capitals into symbols, so it is refused and the default kept.
+    @Test func shiftOnlyChordIsRefused() {
+        let c = Config.parse("[settings]\nchord = shift\n")
+        #expect(c.chord == [.control, .shift])
+        #expect(c.warnings.count == 1)
+        #expect(c.warnings[0].contains("chord"))
+    }
+
+    @Test func shiftOnlyShortcutsAreRefused() {
+        let c = Config.parse("[settings]\ntoggle = shift+escape\nsymbols = shift+slash\n")
+        #expect(c.toggle == nil)
+        #expect(c.symbols == Shortcut([.control, .shift], "/"))
+        #expect(c.warnings.count == 2)
+    }
+
+    @Test func optionAloneIsFine() {
+        let c = Config.parse("[settings]\nchord = option\ntoggle = option+escape\n")
+        #expect(c.warnings == [])
+        #expect(c.chord == [.option])
+    }
+}

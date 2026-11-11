@@ -133,7 +133,12 @@ public struct Config: Sendable {
         switch key {
         case "chord":
             if let m = Config.parseModifiers(value), !m.isEmpty {
-                chord = m
+                if let p = Config.chordProblem(m) {
+                    // Shift alone would turn capital letters into symbols.
+                    warnings.append("line \(line): chord \"\(value)\": \(p); using control+shift")
+                } else {
+                    chord = m
+                }
             } else {
                 warnings.append("line \(line): chord \"\(value)\" is not modifiers like control+shift; using control+shift")
             }
@@ -146,14 +151,22 @@ public struct Config: Sendable {
         case "toggle":
             if value.isEmpty { toggle = nil; return }
             if let s = Config.parseShortcut(value) {
-                toggle = s
+                if let p = Config.chordProblem(s.modifiers) {
+                    warnings.append("line \(line): toggle \"\(value)\": \(p); no toggle chord")
+                } else {
+                    toggle = s
+                }
             } else {
                 warnings.append("line \(line): toggle \"\(value)\" is not like control+shift+escape; no toggle chord")
             }
         case "symbols":
             if value.isEmpty { symbols = nil; return }
             if let s = Config.parseShortcut(value) {
-                symbols = s
+                if let p = Config.chordProblem(s.modifiers) {
+                    warnings.append("line \(line): symbols \"\(value)\": \(p); using control+shift+slash")
+                } else {
+                    symbols = s
+                }
             } else {
                 warnings.append("line \(line): symbols \"\(value)\" is not like control+shift+slash; using control+shift+slash")
             }
