@@ -32,8 +32,12 @@ the keyboard.
 
 ## Update
 
-1. Click **ə** in the menu bar, then **Update…**. Or in Terminal run
-   `~/ipa-keys/scripts/update.sh`.
+1. Click **ə** in the menu bar. The update item says where things stand
+   (it checks when you open the menu, and every few hours):
+   **Up to Date**, **Update Available (3)** or **Install Update**. Choose
+   either of the last two, or in Terminal run `~/ipa-keys/scripts/update.sh`.
+   If it says **Update:** followed by a problem (Local Changes, Diverged,
+   Check Failed, …), choose it to read what is wrong and how to fix it.
 2. Read the last lines in the window. They say which version is now running,
    or, in plain words, why the update stopped. Your settings file is never
    changed by an update.

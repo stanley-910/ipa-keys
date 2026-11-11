@@ -30,6 +30,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return p
     }()
     private var symbolsItem = NSMenuItem()
+    private var updateItem = NSMenuItem()
+    private var updateState: UpdateState?
+    private var updateChecking = false
+    private var lastUpdateCheck = Date.distantPast
+    private let updateQueue = DispatchQueue(label: "ipa-keys.update-check", qos: .utility)
 
     private var enabled: Bool {
         get { UserDefaults.standard.object(forKey: "enabled") as? Bool ?? true }
@@ -72,6 +77,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         tick()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
+        checkForUpdates()
+        Timer.scheduledTimer(withTimeInterval: 3 * 3600, repeats: true) { [weak self] _ in self?.checkForUpdates() }
     }
 
     /// Once a second: start the tap when permission arrives, follow secure
@@ -215,10 +222,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             i.target = self
             menu.addItem(i)
         }
-        if App.updateScript != nil {
-            let i = NSMenuItem(title: "Update…", action: #selector(update), keyEquivalent: "")
-            i.target = self
-            menu.addItem(i)
+        if App.sourceFolder != nil {
+            updateItem = NSMenuItem(title: "Checking for Updates…", action: #selector(updateChosen), keyEquivalent: "")
+            updateItem.target = self
+            menu.addItem(updateItem)
         }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
@@ -227,10 +234,17 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refresh()
     }
 
-    func menuNeedsUpdate(_ menu: NSMenu) { refresh() }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        // Opening the menu re-checks, at most once a minute.
+        if Date().timeIntervalSince(lastUpdateCheck) > 60 { checkForUpdates() }
+        refresh()
+    }
 
     private func refresh() {
         enabledItem.state = enabled ? .on : .off
+        // The last result stays up while a new check runs.
+        updateItem.title = updateState?.label ?? "Checking for Updates…"
+        updateItem.isEnabled = updateState.map { $0.canUpdate || $0.isProblem } ?? false
         // Show the symbols chord beside the item (it works from any app).
         let sc = settingsModel.config.symbols
         symbolsItem.keyEquivalent = sc.map { Config.keyNames.values.contains($0.key) || $0.key.count == 1 ? $0.key : "" } ?? ""
@@ -367,17 +381,49 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// The source checkout's update script, recorded at build time.
-    static var updateScript: URL? {
-        guard let root = Bundle.main.object(forInfoDictionaryKey: "IPAKeysSource") as? String else { return nil }
-        let url = URL(fileURLWithPath: root).appendingPathComponent("scripts/update.sh")
-        return FileManager.default.isExecutableFile(atPath: url.path) ? url : nil
+    /// The source checkout this app was built from, recorded at build time.
+    static var sourceFolder: String? { Bundle.main.object(forInfoDictionaryKey: "IPAKeysSource") as? String }
+    static var installedCommit: String? { Bundle.main.object(forInfoDictionaryKey: "IPAKeysCommit") as? String }
+
+    /// Fetches and compares in the background; the menu item follows.
+    private func checkForUpdates() {
+        guard let root = App.sourceFolder, !updateChecking else { return }
+        updateChecking = true
+        lastUpdateCheck = Date()
+        refresh()
+        let installed = App.installedCommit
+        updateQueue.async { [weak self] in
+            let facts = UpdateCheck.facts(source: root, installed: installed)
+            let state = UpdateState(facts)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if state != self.updateState {
+                    Log.write("update check: \(state.label) (ahead \(facts.ahead), behind \(facts.behind)\(facts.fetchError.map { ", fetch: \($0)" } ?? ""))")
+                }
+                self.updateState = state
+                self.updateChecking = false
+                self.refresh()
+            }
+        }
+    }
+
+    @objc private func updateChosen() {
+        guard let state = updateState, let root = App.sourceFolder else { return }
+        if state.canUpdate { return update() }
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = state.label
+        alert.informativeText = state.explanation(source: root)
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Check Again")
+        if alert.runModal() == .alertSecondButtonReturn { checkForUpdates() }
     }
 
     /// Runs update.sh in a Terminal window: it shows the result, can ask for
     /// a password, and is not stopped when the install restarts ipa-keys.
-    @objc private func update() {
-        guard let script = App.updateScript else { return }
+    private func update() {
+        guard let root = App.sourceFolder else { return }
+        let script = URL(fileURLWithPath: root).appendingPathComponent("scripts/update.sh")
         let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
         Log.write("update: opening \(script.path) in Terminal")
         NSWorkspace.shared.open([script], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration()) { _, error in

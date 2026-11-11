@@ -31,6 +31,18 @@ if CommandLine.arguments.dropFirst().first == "--missing-defaults" {
     exit(0)
 }
 
+/// `ipa-keys --update-status [SOURCE [INSTALLED]]`: run the menu's update
+/// check and print the result. Defaults to this app's recorded values.
+if CommandLine.arguments.dropFirst().first == "--update-status" {
+    let a = CommandLine.arguments
+    let root = a.count > 2 ? a[2] : (App.sourceFolder ?? "")
+    let installed = a.count > 3 ? a[3] : App.installedCommit
+    let state = UpdateState(UpdateCheck.facts(source: root, installed: installed))
+    print(state.label)
+    print(state.explanation(source: root))
+    exit(0)
+}
+
 if CommandLine.arguments.dropFirst().first == "--snapshot", CommandLine.arguments.count > 2 {
     Snapshot.run(into: CommandLine.arguments[2])
     exit(0)
