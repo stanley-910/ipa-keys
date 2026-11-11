@@ -55,7 +55,20 @@ else echo "Downloaded $BEFORE -> $AFTER:"; git log --format='  %s' "$BEFORE..$AF
 
 echo "Building and installing..."
 STARTED="$(date '+%Y-%m-%d %H:%M:%S')"
-"$ROOT/scripts/install.sh" || fail "the build or install failed (see the messages above)."
+status=0
+"$ROOT/scripts/install.sh" || status=$?
+if [ $status -ne 0 ]; then
+  echo
+  case $status in
+    1|2) echo "Update stopped: the new code was downloaded, but building it failed (see the messages above)." ;;
+    3) echo "Update stopped: the new code was built, but copying it into ~/Applications failed (disk full?)." ;;
+    4) echo "Update stopped: the new version did not start, so the one you had was put back." ;;
+    *) echo "Update stopped: installing failed and the previous version could not be put back."
+       echo "  Run: \"$ROOT/scripts/install.sh\"" ;;
+  esac
+  [ $status -le 4 ] && echo "The version you had is still installed. Your settings file was not changed."
+  exit 1
+fi
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null)"
 COMMIT="$(/usr/libexec/PlistBuddy -c 'Print :IPAKeysCommit' "$APP/Contents/Info.plist" 2>/dev/null)"

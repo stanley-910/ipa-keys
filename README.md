@@ -40,7 +40,8 @@ the keyboard.
    Check Failed, …), choose it to read what is wrong and how to fix it.
 2. Read the last lines in the window. They say which version is now running,
    or, in plain words, why the update stopped. Your settings file is never
-   changed by an update.
+   changed by an update. If the build, the copy or the start of the new
+   version fails, the version you had stays installed (or is put back).
 3. If a new version adds symbols, the window lists the lines your settings
    file lacks. To add any of them, paste them in with **Edit Config**.
 
