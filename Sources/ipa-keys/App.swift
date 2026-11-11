@@ -70,7 +70,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.enabled = on
             self?.refresh()
         }
-        if let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier { controller.appChanged(front) }
+        if let front = NSWorkspace.shared.frontmostApplication {
+            controller.appChanged(front.bundleIdentifier ?? "", pid: front.processIdentifier)
+        }
+        Poster.context = { [controller] in controller!.outputContext }
         setUpMenu()
         observe()
 
@@ -108,7 +111,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let secure = IsSecureEventInputEnabled()
         if secure != secureInput {
             secureInput = secure
-            controller.reset()
+            controller.contextChanged()
             if secure {
                 let pid = (CGSessionCopyCurrentDictionary() as? [String: Any])?["kCGSSessionSecureInputPID"] as? NSNumber
                 let name = pid.flatMap { NSRunningApplication(processIdentifier: pid_t($0.int32Value))?.localizedName }
@@ -194,7 +197,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let ws = NSWorkspace.shared.notificationCenter
         ws.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] n in
             let app = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-            self?.controller.appChanged(app?.bundleIdentifier ?? "")
+            self?.controller.appChanged(app?.bundleIdentifier ?? "", pid: app?.processIdentifier ?? 0)
         }
         DistributedNotificationCenter.default().addObserver(
             forName: NSNotification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String), object: nil, queue: .main
@@ -332,10 +335,19 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !IsSecureEventInputEnabled() else { return copy(s, because: "secure input is on") }
         let name = target.localizedName ?? target.bundleIdentifier ?? "the app"
         let send = { [weak self] in
-            self?.controller.reset()
+            guard let self else { return }
+            self.controller.reset()
             Log.write("palette \(s.id) in \(target.bundleIdentifier ?? name): type \(describeText(s.symbol, content: Log.debug))")
-            Poster.post([.insert(s.symbol)], note: "palette \(s.id)")
-            self?.paletteModel.status = "Typed \(s.glyph) in \(name)"
+            // Checked again when it is posted: if the app in front, focus or
+            // secure input changed by then, it is copied instead.
+            let batch = Poster.Batch(actions: [.insert(s.symbol)], stamp: self.controller.stamp(for: target.processIdentifier),
+                                     note: "palette \(s.id)")
+            Poster.send(batch) { [weak self] verdict in
+                switch verdict {
+                case .go: self?.paletteModel.status = "Typed \(s.glyph) in \(name)"
+                case .abandon(let why), .stop(let why): self?.copy(s, because: why)
+                }
+            }
         }
         guard palettePanel.isKeyWindow else { return send() }
         // The search field has the keyboard: hand it back to the app first.

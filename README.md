@@ -218,6 +218,14 @@ multi-part symbols such as ɑ̃ or d͡ʒ. If you only use a shell there, add the
 terminal to `code_point_apps`: cycling then sends one Backspace per code point
 and works for marks too (but not in Vim).
 
+While ipa-keys is typing (replacing a name, swapping a symbol: a few
+milliseconds), the keys you type and your clicks wait and then follow in
+order, so a quick next key can't land between its Backspaces and its text.
+Just before each keystroke it checks that the same app is in front, nothing
+switched focus, and no password field has the keyboard. If something changed
+before it started, it sends nothing and lets your last key through as typed.
+If something changed partway, it stops.
+
 ## Log and troubleshooting
 
 `~/.local/state/ipa-keys/ipa-keys.log` records start-up, the permission state,

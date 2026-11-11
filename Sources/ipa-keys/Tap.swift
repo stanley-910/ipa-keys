@@ -16,7 +16,12 @@ final class Tap {
     /// False when macOS refused the tap (no Accessibility yet).
     func start() -> Bool {
         var mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
-        for t in [CGEventType.leftMouseDown, .rightMouseDown, .otherMouseDown] { mask |= 1 << t.rawValue }
+        // Clicks reset what ipa-keys knows of the text; ups and drags are
+        // watched too so all of a click can be held behind our keystrokes.
+        for t in [CGEventType.leftMouseDown, .rightMouseDown, .otherMouseDown, .leftMouseUp, .rightMouseUp,
+                  .otherMouseUp, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged] {
+            mask |= 1 << t.rawValue
+        }
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,

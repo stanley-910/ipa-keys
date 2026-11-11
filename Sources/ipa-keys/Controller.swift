@@ -12,6 +12,10 @@ final class Controller {
     private var keymap: KeyMap
     private var enabled: Bool
     private var frontApp = ""
+    private var frontPID: Int32 = 0
+    /// Goes up when focus or state changes other than through keys and
+    /// clicks the tap holds back; output decided before is then dropped.
+    private var generation = 0
     /// Presses we keep from the app, through repeats to key-up.
     private var presses = PressTracker()
     /// After an Option key, which may be a dead key (Option-E then e makes
@@ -33,12 +37,12 @@ final class Controller {
     /// While a shortcut is being recorded, keys go straight to the app.
     var isPaused: Bool {
         get { lock.withLock { paused } }
-        set { lock.withLock { paused = newValue; engine.reset() } }
+        set { lock.withLock { paused = newValue; engine.reset(); generation += 1 } }
     }
 
     var isEnabled: Bool {
         get { lock.withLock { enabled } }
-        set { lock.withLock { enabled = newValue; engine.reset() } }
+        set { lock.withLock { enabled = newValue; engine.reset(); generation += 1 } }
     }
 
     func setConfig(_ c: Config) { lock.withLock { config = c; engine = Engine(config: c) } }
@@ -47,21 +51,41 @@ final class Controller {
     /// Something moved the cursor or changed focus.
     func reset() { lock.withLock { engine.reset(); afterOption = false } }
 
+    /// Focus or state changed (secure input): drop output not yet sent.
+    func contextChanged() {
+        lock.withLock {
+            engine.reset()
+            afterOption = false
+            generation += 1
+        }
+    }
+
     /// The tap was off for a while: key-ups may have been missed.
     func interrupted() {
         lock.withLock {
             engine.reset()
             afterOption = false
             presses.clear()
+            generation += 1
         }
     }
 
-    func appChanged(_ bundleID: String) {
+    func appChanged(_ bundleID: String, pid: Int32) {
         lock.withLock {
             frontApp = bundleID
+            frontPID = pid
             engine.reset()
             afterOption = false
+            generation += 1
         }
+    }
+
+    /// What Poster checks before each keystroke.
+    var outputContext: (generation: Int, app: Int32) { lock.withLock { (generation, frontPID) } }
+
+    /// A stamp for output decided now, for `app` (default: the front app).
+    func stamp(for app: Int32? = nil) -> OutputStamp {
+        lock.withLock { OutputStamp(generation: generation, app: app ?? frontPID) }
     }
 
     /// Keys that move the cursor, leave the field, or do something we can't follow.
@@ -81,10 +105,27 @@ final class Controller {
         return m
     }
 
-    /// True to keep the event from the app.
+    private static let holdable: Set<CGEventType> = [
+        .keyDown, .keyUp, .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
+        .otherMouseDown, .otherMouseUp, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged,
+    ]
+
+    /// True to keep the event from the app (now; it may be replayed later).
     func handle(type: CGEventType, event: CGEvent) -> Bool {
         lock.lock()
         defer { lock.unlock() }
+        if decide(type: type, event: event) { return true }
+        // Our keystrokes are still being sent: a key or click that passed
+        // them now could land between a Backspace and its text, or move the
+        // cursor under them. Hold it and send it after, in order.
+        if Controller.holdable.contains(type), Poster.mustHold, let copy = event.copy() {
+            Poster.replay([copy])
+            return true
+        }
+        return false
+    }
+
+    private func decide(type: CGEventType, event: CGEvent) -> Bool {
         switch type {
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
             engine.reset()
@@ -139,7 +180,7 @@ final class Controller {
             if repeating { return true }
             let mode: DeleteMode = config.codePointApps.contains(frontApp) ? .codePoints
                 : config.terminalApps.contains(frontApp) ? .terminal : .select
-            if let d = engine.chord(key: key, mode: mode) { act(d, mode: mode) }
+            if let d = engine.chord(key: key, mode: mode) { act(d, mode: mode, giveBack: []) }
             return true
         }
         if !mods.isDisjoint(with: [.command, .control]) || Controller.resetKeys.contains(Int(code)) {
@@ -167,16 +208,24 @@ final class Controller {
             return false
         }
         presses.claim(code)
-        act(d, mode: .codePoints)
+        // If the expansion is dropped before it starts, the key goes through.
+        var giveBack: [CGEvent] = []
+        if let down = event.copy(), let up = event.copy() {
+            up.type = .keyUp
+            giveBack = [down, up]
+        }
+        act(d, mode: .codePoints, giveBack: giveBack)
         return true
     }
 
-    private func act(_ d: Decision, mode: DeleteMode) {
+    private func act(_ d: Decision, mode: DeleteMode, giveBack: [CGEvent]) {
         let app = frontApp.isEmpty ? "unknown app" : frontApp
         let how = mode == .codePoints ? "code point mode" : mode == .terminal ? "terminal mode" : "select mode"
         let detail = Log.debug ? d.detail.map { " " + $0 } ?? "" : ""
         Log.write("\(d.note)\(detail) in \(app) (\(how)): \(describeActions(d.actions, content: Log.debug))")
-        if !d.actions.isEmpty { Poster.post(d.actions, note: d.note) }
+        guard !d.actions.isEmpty else { return }
+        let stamp = OutputStamp(generation: generation, app: frontPID)
+        Poster.send(Poster.Batch(actions: d.actions, stamp: stamp, note: d.note, giveBack: giveBack))
     }
 
     static func characters(_ event: CGEvent) -> String {
