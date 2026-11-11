@@ -14,6 +14,11 @@ if CommandLine.arguments.dropFirst().first == "--check" {
         let code = map.codes[key].map { "key code \($0)" } ?? "NO KEY on this layout"
         print("\(key)  (\(code)): \(config.groups[key]!.joined(separator: " "))")
     }
+    for (name, shortcut) in config.shortcuts {
+        guard let sc = shortcut else { continue }
+        let code = map.code(for: sc.key).map { "key code \($0)" } ?? "NO KEY on this layout"
+        print("\(name): \(sc.display)  (\(code))")
+    }
     print("\(config.names.count) names, prefix \(config.prefix)")
     exit(config.warnings.isEmpty ? 0 : 1)
 }

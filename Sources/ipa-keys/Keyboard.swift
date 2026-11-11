@@ -1,6 +1,7 @@
 import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
+import IPAKeysCore
 
 /// Which physical key types which character, from the current keyboard
 /// layout, so a chord can match on key codes: with Control and Shift held
@@ -10,15 +11,6 @@ struct KeyMap {
     var chars: [CGKeyCode: String] = [:]
     var codes: [String: CGKeyCode] = [:]
     var layoutName = "US (built in)"
-
-    /// US ANSI positions, used for anything the layout does not give.
-    static let ansi: [String: CGKeyCode] = [
-        "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11, "q": 12,
-        "w": 13, "e": 14, "r": 15, "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21, "6": 22, "5": 23,
-        "=": 24, "9": 25, "7": 26, "-": 27, "8": 28, "0": 29, "]": 30, "o": 31, "u": 32, "[": 33, "i": 34,
-        "p": 35, "l": 37, "j": 38, "'": 39, "k": 40, ";": 41, "\\": 42, ",": 43, "/": 44, "n": 45, "m": 46,
-        ".": 47, "`": 50,
-    ]
 
     /// Keys that are not characters, for the toggle chord.
     static let special: [String: CGKeyCode] = [
@@ -32,6 +24,7 @@ struct KeyMap {
     /// Reads the current layout. Call on the main thread.
     static func current() -> KeyMap {
         var map = KeyMap()
+        var typed: [UInt16: String] = [:]
         if let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue() {
             if let name = TISGetInputSourceProperty(source, kTISPropertyLocalizedName) {
                 map.layoutName = Unmanaged<CFString>.fromOpaque(name).takeUnretainedValue() as String
@@ -49,17 +42,15 @@ struct KeyMap {
                                                     UInt32(LMGetKbdType()), OptionBits(kUCKeyTranslateNoDeadKeysBit),
                                                     &dead, out.count, &len, &out)
                         guard status == noErr, len > 0 else { continue }
-                        let s = String(utf16CodeUnits: out, count: len).lowercased()
-                        guard s.count == 1, map.codes[s] == nil else { continue }
-                        map.codes[s] = CGKeyCode(code)
+                        typed[UInt16(code)] = String(utf16CodeUnits: out, count: len)
                     }
                 }
             }
         }
-        for (s, code) in ansi where map.codes[s] == nil && !map.codes.values.contains(code) {
-            map.codes[s] = code
+        for (s, code) in KeyLayout.resolve(layout: typed) {
+            map.codes[s] = CGKeyCode(code)
+            map.chars[CGKeyCode(code)] = s
         }
-        for (s, code) in map.codes { map.chars[code] = s }
         return map
     }
 

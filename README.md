@@ -246,9 +246,11 @@ no permission.
   smart quotes, autocomplete), the next cycle may select the wrong amount.
 - **Shortcuts.** With the default chord, Control+Shift plus a grouped key never
   reaches the app. Change `chord` if an app needs one of those.
-- **Layouts.** Keys are matched by what they type with no modifiers on the
-  current layout. A config key the layout can only type with Shift (digits on
-  AZERTY) falls back to its US position.
+- **Layouts.** Digits are always the number-row keys. Letters and
+  punctuation are the key that types them with no modifiers on the current
+  layout; one the layout doesn't type that way uses its US position, if that
+  key is free. On French AZERTY this leaves no key for `/` and `\`, so change
+  the Symbols shortcut there. `ipa-keys --check` lists any key with no place.
 - **Names** are case-sensitive and must be typed in one go. Backspace while
   typing a name works; arrow keys or a click start over.
 - It does not touch Control+Space, so it doesn't interfere with dictate.
