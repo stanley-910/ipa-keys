@@ -4,6 +4,8 @@ import Carbon.HIToolbox
 import IPAKeysCore
 
 final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
+    /// The running app, for views that need it.
+    private(set) static var shared: App?
     static let configURL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".config/ipa-keys/config.txt")
 
@@ -17,6 +19,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var secureInput = false
     private var trusted = false
     private var timer: Timer?
+    /// The current keyboard layout, for the shortcut recorder.
+    private(set) var keymap = KeyMap()
+    private let settingsModel = SettingsModel()
+    private lazy var settingsWindow = SettingsWindow(model: settingsModel)
 
     private var enabled: Bool {
         get { UserDefaults.standard.object(forKey: "enabled") as? Bool ?? true }
@@ -24,6 +30,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ note: Notification) {
+        App.shared = self
         Log.open()
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
         let commit = Bundle.main.object(forInfoDictionaryKey: "IPAKeysCommit") as? String ?? "unknown commit"
@@ -33,9 +40,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             Log.write("another ipa-keys is already running; quitting so symbols are not typed twice")
             exit(0)
         }
-        let keymap = KeyMap.current()
+        keymap = KeyMap.current()
         Log.write("keyboard layout: \(keymap.layoutName)")
-        controller = Controller(config: loadConfig(), keymap: keymap, enabled: enabled)
+        let config = loadConfig()
+        controller = Controller(config: config, keymap: keymap, enabled: enabled)
+        settingsModel.load(config)
+        settingsModel.save = { [weak self] key, value in self?.writeSetting(key, value) }
         controller.onToggle = { [weak self] on in
             self?.enabled = on
             self?.refresh()
@@ -138,7 +148,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func reload(reason: String) {
         Log.write("reloading config (\(reason))")
-        controller.setConfig(loadConfig())
+        let c = loadConfig()
+        controller.setConfig(c)
+        settingsModel.load(c)
         refresh()
     }
 
@@ -163,6 +175,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             forName: NSNotification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String), object: nil, queue: .main
         ) { [weak self] _ in
             let map = KeyMap.current()
+            self?.keymap = map
             self?.controller.setKeyMap(map)
             Log.write("keyboard layout: \(map.layoutName)")
         }
@@ -182,7 +195,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         enabledItem.target = self
         menu.addItem(enabledItem)
         menu.addItem(.separator())
-        for (title, action) in [("Edit Config", #selector(editConfig)), ("Reload", #selector(reloadConfig))] {
+        for (title, action) in [("Settings…", #selector(openSettings)), ("Edit Config", #selector(editConfig)),
+                                ("Reload", #selector(reloadConfig))] {
             let i = NSMenuItem(title: title, action: action, keyEquivalent: "")
             i.target = self
             menu.addItem(i)
@@ -235,6 +249,28 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func reloadConfig() { reload(reason: "menu") }
+
+    @objc private func openSettings() { settingsWindow.show() }
+
+    /// Stops reading keys while a shortcut field is recording.
+    func pauseKeys(_ paused: Bool) { controller.isPaused = paused }
+
+    /// Sets one line of [settings] in config.txt, leaving the rest of the
+    /// file as it is, and reloads. Returns a problem to show, or nil.
+    func writeSetting(_ key: String, _ value: String) -> String? {
+        let url = App.configURL
+        if !FileManager.default.fileExists(atPath: url.path) { _ = loadConfig() }
+        do {
+            let text = try String(contentsOf: url, encoding: .utf8)
+            try ConfigEditor.set(key, to: value, in: text).write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            Log.write("settings: could not write \(key) to \(url.path): \(error.localizedDescription)")
+            return "Could not save: \(error.localizedDescription)"
+        }
+        Log.write("settings: \(key) = \(value)")
+        reload(reason: "Settings")
+        return nil
+    }
 
     @objc private func openAccessibility() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {

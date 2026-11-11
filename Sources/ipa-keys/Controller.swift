@@ -27,6 +27,13 @@ final class Controller {
         self.enabled = enabled
     }
 
+    private var paused = false
+    /// While a shortcut is being recorded, keys go straight to the app.
+    var isPaused: Bool {
+        get { lock.withLock { paused } }
+        set { lock.withLock { paused = newValue; engine.reset() } }
+    }
+
     var isEnabled: Bool {
         get { lock.withLock { enabled } }
         set { lock.withLock { enabled = newValue; engine.reset() } }
@@ -85,6 +92,7 @@ final class Controller {
         let code = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
         let mods = Controller.modifiers(event.flags)
         let repeating = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        if paused { return false }
 
         if let t = config.toggle, keymap.code(for: t.key) == code, mods == t.modifiers {
             swallowedUps.insert(code)

@@ -31,6 +31,11 @@ if CommandLine.arguments.dropFirst().first == "--missing-defaults" {
     exit(0)
 }
 
+if CommandLine.arguments.dropFirst().first == "--snapshot", CommandLine.arguments.count > 2 {
+    Snapshot.run(into: CommandLine.arguments[2])
+    exit(0)
+}
+
 let app = NSApplication.shared
 let delegate = App()
 app.delegate = delegate

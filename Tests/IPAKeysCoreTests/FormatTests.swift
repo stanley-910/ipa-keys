@@ -1,0 +1,115 @@
+import Testing
+@testable import IPAKeysCore
+
+struct FormatTests {
+    @Test func modifierSpellings() {
+        let m: Modifiers = [.shift, .control]
+        #expect(m.configString == "control+shift")
+        #expect(m.glyphs == "⌃⇧")
+        #expect(m.words == "Ctrl+Shift")
+        #expect(Modifiers([.command, .option, .control, .shift]).configString == "control+option+shift+command")
+    }
+
+    @Test func shortcutSpellings() {
+        #expect(Shortcut([.control, .shift], "escape").configString == "control+shift+escape")
+        #expect(Shortcut([.control, .shift], "escape").display == "⌃⇧Esc")
+        #expect(Shortcut([.control, .shift], "/").configString == "control+shift+slash")
+        #expect(Shortcut([.control, .shift], "/").display == "⌃⇧/")
+        #expect(Shortcut([.option], "e").display == "⌥E")
+    }
+
+    /// What the file writes reads back as the same shortcut.
+    @Test func shortcutRoundTrips() {
+        for s in [Shortcut([.control, .shift], "escape"), Shortcut([.command, .option], ","), Shortcut([.control], "f5")] {
+            #expect(Config.parseShortcut(s.configString) == s)
+        }
+    }
+
+    @Test func chordNeedsARealModifier() {
+        #expect(Config.chordProblem([.shift]) != nil)
+        #expect(Config.chordProblem([]) != nil)
+        #expect(Config.chordProblem([.control, .shift]) == nil)
+        #expect(Config.chordProblem([.option]) == nil)
+    }
+
+    @Test func prefixRules() {
+        #expect(Config.prefixProblem(";") == nil)
+        #expect(Config.prefixProblem("\\\\") == nil)
+        #expect(Config.prefixProblem("") != nil)
+        #expect(Config.prefixProblem("; ") != nil)
+        #expect(Config.prefixProblem("=") != nil)
+        #expect(Config.prefixProblem("#") != nil)
+    }
+
+    @Test func toggleMustNotTakeAGroupKey() {
+        let c = ConfigTests.defaults
+        #expect(c.shortcutProblem(Shortcut([.control, .shift], "e"), for: "toggle") != nil)
+        #expect(c.shortcutProblem(Shortcut([.control, .shift], "escape"), for: "toggle") == nil)
+        #expect(c.shortcutProblem(Shortcut([.shift], "escape"), for: "toggle") != nil)
+    }
+}
+
+struct ConfigEditorTests {
+    static let file = """
+    # my notes
+    [settings]
+    # the chord
+    chord = control+shift
+      prefix = ;
+
+    [groups]
+    # mine
+    e = ə ɚ
+    """
+
+    @Test func replacesTheValueAndKeepsEverythingElse() {
+        let out = ConfigEditor.set("chord", to: "option+command", in: Self.file)
+        #expect(out == Self.file.replacingOccurrences(of: "chord = control+shift", with: "chord = option+command"))
+    }
+
+    @Test func keepsIndent() {
+        let out = ConfigEditor.set("prefix", to: "::", in: Self.file)
+        #expect(out.contains("\n  prefix = ::\n"))
+        #expect(Config.parse(out).prefix == "::")
+    }
+
+    @Test func addsAMissingSettingAfterTheLastOne() {
+        let out = ConfigEditor.set("toggle", to: "control+shift+escape", in: Self.file)
+        #expect(out.contains("  prefix = ;\ntoggle = control+shift+escape\n\n[groups]"))
+        #expect(Config.parse(out).toggle == Shortcut([.control, .shift], "escape"))
+        #expect(out.contains("# mine\ne = ə ɚ"))
+    }
+
+    @Test func clearingWritesAnEmptyValue() {
+        let withToggle = ConfigEditor.set("toggle", to: "control+shift+escape", in: Self.file)
+        let out = ConfigEditor.set("toggle", to: "", in: withToggle)
+        #expect(out.contains("\ntoggle =\n"))
+        #expect(Config.parse(out).toggle == nil)
+    }
+
+    @Test func addsTheSectionWhenMissing() {
+        let out = ConfigEditor.set("prefix", to: "::", in: "# hi\n[groups]\ne = ə\n")
+        #expect(out == "# hi\n[settings]\nprefix = ::\n\n[groups]\ne = ə\n")
+        #expect(ConfigEditor.set("prefix", to: "::", in: "") == "\n[settings]\nprefix = ::\n")
+    }
+
+    /// A key in another section with the same spelling is not touched.
+    @Test func onlyTouchesSettings() {
+        let text = "[names]\nchord = x\n[settings]\nchord = control+shift\n"
+        #expect(ConfigEditor.set("chord", to: "option", in: text) == "[names]\nchord = x\n[settings]\nchord = option\n")
+    }
+
+    @Test func keepsWindowsLineEndings() {
+        let out = ConfigEditor.set("chord", to: "option", in: "[settings]\r\nchord = control\r\n")
+        #expect(out == "[settings]\r\nchord = option\r\n")
+    }
+
+    /// The real default file: changing each setting changes only that line.
+    @Test func defaultFileChangesOneLine() {
+        let before = defaultConfigText.components(separatedBy: "\n")
+        let after = ConfigEditor.set("chord", to: "control+option", in: defaultConfigText).components(separatedBy: "\n")
+        #expect(before.count == after.count)
+        #expect(zip(before, after).filter { $0 != $1 }.count == 1)
+        #expect(Config.parse(after.joined(separator: "\n")).chord == [.control, .option])
+    }
+}

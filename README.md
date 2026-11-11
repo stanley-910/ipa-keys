@@ -14,7 +14,8 @@ works, plus typed names. It is one small menu bar app with no other tools needed
   name is complete: `;schwa` gives ə, `;e1` gives ə (the first symbol under
   E), and `u;extrashort` gives ŭ.
 
-The menu bar item (ə) has **Enabled**, **Edit Config**, **Reload**, **Update…** and **Quit**.
+The menu bar item (ə) has **Enabled**, **Settings…**, **Edit Config**, **Reload**, **Update…** and
+**Quit**.
 It greys out when ipa-keys is off, has no permission, or a password field has
 the keyboard.
 
@@ -69,6 +70,14 @@ ipa-keys needs **Accessibility** to read keys and type symbols:
 
 If a rebuild was signed ad hoc and keys stop working, remove ipa-keys from
 the list and add it again.
+
+## Settings
+
+**Settings…** in the menu changes the chord, the name prefix and the toggle
+shortcut. Click a shortcut box and press the keys; for the chord, hold the
+modifiers and press any key. Escape cancels. Each change is written into
+`config.txt` at once, changing only that line, so your comments and
+everything else in the file stay as they are.
 
 ## Config
 
