@@ -6,6 +6,8 @@ import IPAKeysCore
 final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// The running app, for views that need it.
     private(set) static var shared: App?
+    /// Held open (and locked) for the life of the process.
+    private static var lockFD: Int32 = -1
     static let configURL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".config/ipa-keys/config.txt")
 
@@ -47,8 +49,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
         let commit = Bundle.main.object(forInfoDictionaryKey: "IPAKeysCommit") as? String ?? "unknown commit"
         Log.write("ipa-keys \(version) (\(commit)) starting (pid \(getpid()), \(Bundle.main.bundlePath))")
-        if let id = Bundle.main.bundleIdentifier,
-           NSRunningApplication.runningApplications(withBundleIdentifier: id).contains(where: { $0.processIdentifier != getpid() }) {
+        // One copy at a time, bundled or not (a build run from .build has no
+        // bundle id): two taps would type every symbol twice.
+        let lockPath = Log.url.deletingLastPathComponent().appendingPathComponent("running.lock").path
+        App.lockFD = Darwin.open(lockPath, O_CREAT | O_RDWR, 0o600)
+        if App.lockFD < 0 || flock(App.lockFD, LOCK_EX | LOCK_NB) != 0 {
             Log.write("another ipa-keys is already running; quitting so symbols are not typed twice")
             exit(0)
         }
