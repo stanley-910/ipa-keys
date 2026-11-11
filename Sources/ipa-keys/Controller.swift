@@ -125,7 +125,8 @@ final class Controller {
             }
             swallowedUps.insert(code)
             if repeating { return true }
-            let mode: DeleteMode = config.backspaceApps.contains(frontApp) ? .backspace : .select
+            let mode: DeleteMode = config.codePointApps.contains(frontApp) ? .codePoints
+                : config.terminalApps.contains(frontApp) ? .terminal : .select
             if let d = engine.chord(key: key, mode: mode) { act(d, mode: mode) }
             return true
         }
@@ -154,13 +155,13 @@ final class Controller {
             return false
         }
         swallowedUps.insert(code)
-        act(d, mode: .backspace)
+        act(d, mode: .codePoints)
         return true
     }
 
     private func act(_ d: Decision, mode: DeleteMode) {
         let app = frontApp.isEmpty ? "unknown app" : frontApp
-        let how = mode == .backspace ? "backspace mode" : "select mode"
+        let how = mode == .codePoints ? "code point mode" : mode == .terminal ? "terminal mode" : "select mode"
         Log.write("\(d.note) in \(app) (\(how)): \(Controller.describe(d.actions))")
         if !d.actions.isEmpty { Poster.post(d.actions, note: d.note) }
     }
@@ -170,7 +171,6 @@ final class Controller {
         return actions.map { a -> String in
             switch a {
             case .backspace(let n): return "Backspace x\(n)"
-            case .decomposingBackspace(let n): return "Control-Backspace x\(n)"
             case .selectBack(let n): return "Shift-Left x\(n)"
             case .insert(let s): return "type \(Log.show(s))"
             }

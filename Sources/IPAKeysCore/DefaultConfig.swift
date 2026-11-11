@@ -20,12 +20,19 @@ prefix = ;
 # Empty means none (use the menu bar item).
 toggle =
 
+# Apps where you know Backspace deletes one code point at a time (zsh and
+# bash do; Vim deletes a letter with all its marks). Cycling marks works
+# there. Empty unless you add one, e.g. com.apple.Terminal.
+code_point_apps =
+
 # A chord that opens the symbol palette. Empty means none.
 symbols = control+shift+slash
 
-# Apps where cycling a symbol uses Backspace instead of selecting it
-# (terminals, where Shift+Left does not select). Bundle ids, space-separated.
-backspace_apps = com.apple.Terminal com.googlecode.iterm2 com.mitchellh.ghostty net.kovidgoyal.kitty io.alacritty org.alacritty com.github.wez.wezterm dev.warp.Warp-Stable co.zeit.hyper
+# Terminals, where Shift+Left does not select. Pressing a chord again there
+# swaps a one-character symbol with Backspace, but leaves marks and
+# multi-part symbols alone, because programs disagree on what Backspace
+# deletes after a mark. Bundle ids, space-separated.
+terminal_apps = com.apple.Terminal com.googlecode.iterm2 com.mitchellh.ghostty net.kovidgoyal.kitty io.alacritty org.alacritty com.github.wez.wezterm dev.warp.Warp-Stable co.zeit.hyper
 
 [groups]
 # key = symbols. The chord plus the key types the first symbol; press it

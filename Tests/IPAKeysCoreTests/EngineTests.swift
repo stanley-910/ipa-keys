@@ -93,12 +93,18 @@ struct EngineTests {
         #expect(e.chord(key: "4", mode: .select)?.actions == [.selectBack(1), .insert("a\u{303}\u{301}")])
     }
 
-    /// The letter was there before a click: unknown, so remove just the
-    /// mark with Control-Backspace.
-    @Test func markWithUnknownLetter() {
+    /// The letter was there before a click: unknown. No deletion is right
+    /// in every app (Safari's Backspace takes the letter too), so the press
+    /// does nothing and the mark stays; the next press still does nothing.
+    @Test func markWithUnknownLetterIsLeftAlone() {
         let e = engine()
         _ = e.chord(key: ",", mode: .select)
-        #expect(e.chord(key: ",", mode: .select)?.actions == [.decomposingBackspace(1), .insert("\u{30A}")])
+        let d = e.chord(key: ",", mode: .select)
+        #expect(d?.swallow == true)
+        #expect(d?.actions == [])
+        #expect(d?.note.contains("skipped") == true)
+        #expect(e.context == "\u{325}")
+        #expect(e.chord(key: ",", mode: .select)?.actions == [])
     }
 
     /// d͡ʒ is two characters to the cursor (d͡ and ʒ).
@@ -117,14 +123,37 @@ struct EngineTests {
         #expect(e.chord(key: "f", mode: .select)?.actions == [.selectBack(1), .insert("t‿")])
     }
 
-    @Test func terminalsBackspacePerCodePoint() {
+    /// Opted in (code_point_apps): Backspace once per code point.
+    @Test func codePointAppsBackspacePerCodePoint() {
         let e = engine()
         _ = e.typed("u")
-        _ = e.chord(key: "a", mode: .backspace)
-        _ = e.chord(key: "a", mode: .backspace)
-        _ = e.chord(key: "a", mode: .backspace)
-        #expect(e.chord(key: "a", mode: .backspace)?.actions == [.backspace(1), .insert("ɑ\u{303}")])
-        #expect(e.chord(key: "a", mode: .backspace)?.actions == [.backspace(2), .insert("ɑ")])
+        _ = e.chord(key: "a", mode: .codePoints)
+        _ = e.chord(key: "a", mode: .codePoints)
+        _ = e.chord(key: "a", mode: .codePoints)
+        #expect(e.chord(key: "a", mode: .codePoints)?.actions == [.backspace(1), .insert("ɑ\u{303}")])
+        #expect(e.chord(key: "a", mode: .codePoints)?.actions == [.backspace(2), .insert("ɑ")])
+    }
+
+    /// A terminal by default: one Backspace for a lone code point, which
+    /// every program deletes the same way.
+    @Test func terminalsSwapSingleSymbols() {
+        let e = engine()
+        _ = e.chord(key: "e", mode: .terminal)
+        #expect(e.chord(key: "e", mode: .terminal)?.actions == [.backspace(1), .insert("ɚ")])
+        #expect(e.chord(key: "e", mode: .terminal)?.actions == [.backspace(1), .insert("ɵ")])
+    }
+
+    /// ...but not ɑ̃ (Vim would delete it whole on the first Backspace and
+    /// the letter before it on the second) and not a mark.
+    @Test func terminalsLeaveMultiPartSymbolsAndMarks() {
+        let e = engine()
+        _ = e.typed("u")
+        for _ in 0..<4 { _ = e.chord(key: "a", mode: .terminal) }      // ɑ æ ɐ ɑ̃: ɑ̃ now
+        #expect(e.chord(key: "a", mode: .terminal)?.actions == [])
+        let m = engine()
+        _ = m.typed("u")
+        _ = m.chord(key: ",", mode: .terminal)
+        #expect(m.chord(key: ",", mode: .terminal)?.actions == [])
     }
 
     @Test func nameExpandsOnLastKey() {

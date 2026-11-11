@@ -22,8 +22,6 @@ enum Poster {
                 switch action {
                 case .backspace(let n):
                     for _ in 0..<max(0, n) { key(kVK_Delete, flags: []) ? (sent += 1) : (failed += 1) }
-                case .decomposingBackspace(let n):
-                    for _ in 0..<max(0, n) { key(kVK_Delete, flags: .maskControl) ? (sent += 1) : (failed += 1) }
                 case .selectBack(let n):
                     for _ in 0..<max(0, n) {
                         key(kVK_LeftArrow, flags: [.maskShift, .maskNumericPad, .maskSecondaryFn]) ? (sent += 1) : (failed += 1)

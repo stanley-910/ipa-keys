@@ -4,10 +4,6 @@ import Foundation
 public enum Action: Equatable, Sendable {
     /// Plain Backspace, n times.
     case backspace(Int)
-    /// Control-Backspace, n times: in Cocoa text it removes only the last
-    /// mark of a letter (deleteBackwardByDecomposingPreviousCharacter:);
-    /// in Chromium it is a plain Backspace, which already does that.
-    case decomposingBackspace(Int)
     /// Shift-Left, n times: selects n characters as the app counts them, a
     /// letter with its marks being one.
     case selectBack(Int)
@@ -19,8 +15,13 @@ public enum Action: Equatable, Sendable {
 public enum DeleteMode: Sendable {
     /// Select it with Shift-Left and type over it (text views and browsers).
     case select
-    /// Backspace once per code point (terminals).
-    case backspace
+    /// A terminal: Shift-Left doesn't select, and what Backspace removes
+    /// depends on the program inside (Vim removes a letter with its marks,
+    /// zsh one code point). Only a lone code point that is not a mark is
+    /// replaced, with one Backspace, which every program agrees on.
+    case terminal
+    /// The user says Backspace removes one code point here (code_point_apps).
+    case codePoints
 }
 
 public struct Decision: Equatable, Sendable {
@@ -71,8 +72,14 @@ public final class Engine {
             if next == c.index {
                 return Decision(swallow: true, actions: [], note: "\(key) has one symbol")
             }
+            guard let actions = Engine.replace(before: c.before, old: c.inserted, new: new, mode: mode) else {
+                // Leave the symbol and the cycle where they are rather than
+                // delete something we can't see.
+                cycle = c
+                return Decision(swallow: true, actions: [],
+                                note: "cycle \(key)\(next + 1) skipped: can't replace \(c.index + 1) safely here")
+            }
             setContext(c.before + new)
-            let actions = Engine.replace(before: c.before, old: c.inserted, new: new, mode: mode)
             return Decision(swallow: true, actions: actions, note: "cycle \(key)\(next + 1)")
         }
         let before = context
@@ -130,10 +137,18 @@ public final class Engine {
     /// the mark alone. They agree on Shift-Left, which selects the whole
     /// letter, so select it and type the letter back with the new symbol.
     /// That needs the letter; when it is unknown (typed before a click),
-    /// fall back to Control-Backspace per code point.
-    public static func replace(before: String, old: String, new: String, mode: DeleteMode) -> [Action] {
+    /// nil: no way to remove the mark that is right in every app.
+    public static func replace(before: String, old: String, new: String, mode: DeleteMode) -> [Action]? {
         let oldScalars = old.unicodeScalars.count
-        if mode == .backspace { return [.backspace(oldScalars), .insert(new)] }
+        switch mode {
+        case .codePoints:
+            return [.backspace(oldScalars), .insert(new)]
+        case .terminal:
+            guard oldScalars == 1, let u = old.unicodeScalars.first, !attaches(u) else { return nil }
+            return [.backspace(1), .insert(new)]
+        case .select:
+            break
+        }
         let chars = Array(before + old)
         var i = chars.count, covered = 0
         while covered < oldScalars, i > 0 {
@@ -143,7 +158,7 @@ public final class Engine {
         let first = chars[i]
         if i == 0, let u = first.unicodeScalars.first, attaches(u) {
             // The character starts before anything we saw.
-            return [.decomposingBackspace(oldScalars), .insert(new)]
+            return nil
         }
         let extra = covered - oldScalars
         let keep = String(String.UnicodeScalarView(first.unicodeScalars.prefix(extra)))

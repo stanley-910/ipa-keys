@@ -13,7 +13,8 @@ struct ConfigTests {
         #expect(c.chord == [.control, .shift])
         #expect(c.prefix == ";")
         #expect(c.toggle == nil)
-        #expect(c.backspaceApps.contains("com.apple.Terminal"))
+        #expect(c.terminalApps.contains("com.apple.Terminal"))
+        #expect(c.codePointApps.isEmpty)
     }
 
     /// The website's keys, in its order, then the ones added for marks.
@@ -83,7 +84,8 @@ struct ConfigTests {
         #expect(c.chord == [.option, .command])
         #expect(c.prefix == "::")
         #expect(c.toggle == Shortcut(modifiers: [.control, .shift], key: "escape"))
-        #expect(c.backspaceApps == ["a.b", "c.d"])
+        // backspace_apps is the old name of terminal_apps.
+        #expect(c.terminalApps == ["a.b", "c.d"])
         #expect(c.groups["e"] == ["x", "y"])
         #expect(c.groups[","] == ["\u{325}"])
         #expect(c.names["foo"] == "bar baz")

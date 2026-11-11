@@ -28,8 +28,11 @@ public struct Config: Sendable {
     public var toggle: Shortcut?
     /// Opens the symbol palette. Control+Shift+/ unless the file says otherwise.
     public var symbols: Shortcut? = Shortcut(modifiers: [.control, .shift], key: "/")
-    /// Bundle ids where cycling deletes with Backspace instead of selecting.
-    public var backspaceApps: Set<String> = []
+    /// Bundle ids of terminals: Shift-Left doesn't select there.
+    public var terminalApps: Set<String> = []
+    /// Bundle ids where Backspace is known to remove one code point, so
+    /// cycling may delete marks with it. Opt-in.
+    public var codePointApps: Set<String> = []
     /// Group key (one character, e.g. "e" or ",") to its symbols, in order.
     public var groups: [String: [String]] = [:]
     /// Group keys in file order.
@@ -170,8 +173,10 @@ public struct Config: Sendable {
             } else {
                 warnings.append("line \(line): symbols \"\(value)\" is not like control+shift+slash; using control+shift+slash")
             }
-        case "backspace_apps":
-            backspaceApps = Set(value.split(whereSeparator: \.isWhitespace).map(String.init))
+        case "terminal_apps", "backspace_apps":  // backspace_apps: the old name
+            terminalApps = Set(value.split(whereSeparator: \.isWhitespace).map(String.init))
+        case "code_point_apps":
+            codePointApps = Set(value.split(whereSeparator: \.isWhitespace).map(String.init))
         default:
             warnings.append("line \(line): unknown setting \(key)")
         }

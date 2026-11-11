@@ -126,7 +126,8 @@ toggle =
 # opens the symbol palette; empty means none
 symbols = control+shift+slash
 # see "How cycling deletes"
-backspace_apps = com.apple.Terminal ...
+terminal_apps = com.apple.Terminal ...
+code_point_apps =
 
 [groups]
 # key = symbols, in cycling order
@@ -202,14 +203,18 @@ again with the new mark. That needs the letter, so ipa-keys remembers what was
 typed since the last click, arrow key, shortcut or app switch.
 
 When it doesn't know the letter (you clicked after an existing letter, added a
-mark, then cycled), it sends Control-Backspace once per code point instead.
-Cocoa maps that to "delete the last mark only", and Chrome treats it as
-Backspace, which already does that. Safari and Mail treat it as a plain
-Backspace, so there the letter goes too.
+mark, then pressed the chord again), there is no deletion that is right in
+every app, so the press does nothing: the mark stays and the log says so.
+Type the letter again, or use the mark's name.
 
-Terminals (`backspace_apps`) don't select with Shift-Left, so ipa-keys sends
-one Backspace per code point there. zsh and bash delete one code point per
-Backspace by default, so this should be right, but it is not tested.
+Terminals (`terminal_apps`) don't select with Shift-Left, and what Backspace
+removes after a mark depends on the program inside: zsh and bash remove one
+code point, Vim removes the letter with all its marks. So in a terminal,
+pressing the chord again swaps a one-character symbol (ə to ɚ) with one
+Backspace, which every program agrees on, and does nothing for marks and
+multi-part symbols such as ɑ̃ or d͡ʒ. If you only use a shell there, add the
+terminal to `code_point_apps`: cycling then sends one Backspace per code point
+and works for marks too (but not in Vim).
 
 ## Log and troubleshooting
 
@@ -230,11 +235,13 @@ no permission.
 - **Password fields.** While secure input is on (a password field, or
   Terminal's Secure Keyboard Entry), macOS hides keys from ipa-keys, so it
   does nothing.
-- **Cycling a mark on a letter typed before a click** removes the letter too
-  in Safari and Mail (see above). Type the letter again, or use a name.
+- **Cycling a mark on a letter typed before a click** does nothing (see
+  above). Type the letter again, or use a name.
 - **Option and dead keys.** After an Option key (Option-E then e gives é),
-  ipa-keys stops trusting what it remembers, so a mark cycled right after one
-  takes the Control-Backspace path.
+  ipa-keys stops trusting what it remembers, so a mark right after one can be
+  added but not cycled.
+- **Terminals** cycle only one-character symbols unless listed in
+  `code_point_apps` (see above).
 - **Autocorrect.** If an app changes the text between two presses (autocorrect,
   smart quotes, autocomplete), the next cycle may select the wrong amount.
 - **Shortcuts.** With the default chord, Control+Shift plus a grouped key never
