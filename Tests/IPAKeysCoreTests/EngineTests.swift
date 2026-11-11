@@ -212,3 +212,32 @@ struct ChunkTests {
         #expect(chunks.joined() == text)
     }
 }
+
+struct MultiCharacterEventTests {
+    /// Another tool posting "x;schwa" as one key event: passed through
+    /// untouched (no negative Backspace count), and nothing is remembered.
+    @Test func multiCharacterEventPassesThrough() {
+        let e = Engine(config: ConfigTests.defaults)
+        #expect(e.typed("x;schwa") == .pass)
+        #expect(e.context == "")
+        #expect(e.typed(";schwa") == .pass)
+    }
+
+    /// Typed after such an event, a name still works.
+    @Test func nameAfterwardsStillExpands() {
+        let e = Engine(config: ConfigTests.defaults)
+        _ = e.typed("hello")
+        let last = ";e1".map { e.typed(String($0)) }.last
+        #expect(last?.actions == [.backspace(2), .insert("ə")])
+    }
+
+    /// No action list ever carries a negative count.
+    @Test func countsAreNeverNegative() {
+        let e = Engine(config: ConfigTests.defaults)
+        for s in [";", "e", "1", ";e1", "ə", "\u{306}"] {
+            for a in e.typed(s).actions {
+                if case .backspace(let n) = a { #expect(n >= 0) }
+            }
+        }
+    }
+}

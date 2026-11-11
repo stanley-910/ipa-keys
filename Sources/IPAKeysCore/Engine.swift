@@ -86,11 +86,17 @@ public final class Engine {
     /// name the moment it is complete, swallowing its last key.
     public func typed(_ s: String) -> Decision {
         cycle = nil
+        // One key types one character. An event carrying several (another
+        // tool typing a whole string) can't be split: let it through.
+        guard s.count == 1 else {
+            reset()
+            return .pass
+        }
         let candidate = context + s
         if let r = candidate.range(of: config.prefix, options: [.backwards, .literal]) {
             let name = String(candidate[r.upperBound...])
             if let text = config.names[name] {
-                let alreadyTyped = config.prefix.count + name.count - s.count
+                let alreadyTyped = max(0, config.prefix.count + name.count - s.count)
                 setContext(String(candidate[..<r.lowerBound]) + text)
                 return Decision(swallow: true, actions: [.backspace(alreadyTyped), .insert(text)],
                                 note: "name \(config.prefix)\(name)")
