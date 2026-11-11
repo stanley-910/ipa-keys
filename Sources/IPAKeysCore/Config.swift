@@ -43,6 +43,8 @@ public struct Config: Sendable {
     public var names: [String: String] = [:]
     /// Names written in [names], in file order.
     public var nameOrder: [String] = []
+    /// Write typed names and inserted text to the log (off: lengths only).
+    public var debugLog = false
     /// Problems found while reading, one line each, for the log.
     public var warnings: [String] = []
 
@@ -175,6 +177,12 @@ public struct Config: Sendable {
             }
         case "terminal_apps", "backspace_apps":  // backspace_apps: the old name
             terminalApps = Set(value.split(whereSeparator: \.isWhitespace).map(String.init))
+        case "debug_log":
+            switch value.lowercased() {
+            case "on", "yes", "true": debugLog = true
+            case "off", "no", "false", "": debugLog = false
+            default: warnings.append("line \(line): debug_log is on or off, not \"\(value)\"")
+            }
         case "code_point_apps":
             codePointApps = Set(value.split(whereSeparator: \.isWhitespace).map(String.init))
         default:

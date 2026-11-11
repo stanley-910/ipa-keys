@@ -137,3 +137,31 @@ struct SymbolsSettingTests {
         #expect(c.shortcutProblem(Shortcut([.control, .shift], "escape"), for: "toggle") == nil)
     }
 }
+
+struct LogTextTests {
+    /// By default the log says how much, never what.
+    @Test func noTextByDefault() {
+        let a: [Action] = [.backspace(5), .selectBack(1), .insert("u\u{306}")]
+        #expect(describeActions(a, content: false) == "Backspace x5, Shift-Left x1, type 2 code points")
+        #expect(describeText("ə", content: false) == "1 code point")
+    }
+
+    @Test func debugShowsTextAndCodePoints() {
+        #expect(describeText("u\u{306}", content: true) == "\"u\u{306}\" (U+0075 U+0306)")
+        #expect(describeActions([.insert("ə")], content: true) == "type \"ə\" (U+0259)")
+    }
+
+    /// The typed name is kept out of the note, which is always logged.
+    @Test func nameIsADetailNotTheNote() {
+        let e = Engine(config: ConfigTests.defaults)
+        let d = ";schwa".map { e.typed(String($0)) }.last!
+        #expect(d.note == "name")
+        #expect(d.detail == ";schwa")
+    }
+
+    @Test func debugLogSetting() {
+        #expect(ConfigTests.defaults.debugLog == false)
+        #expect(Config.parse("[settings]\ndebug_log = on\n").debugLog)
+        #expect(Config.parse("[settings]\ndebug_log = maybe\n").warnings.count == 1)
+    }
+}

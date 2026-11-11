@@ -220,11 +220,18 @@ and works for marks too (but not in Vim).
 
 `~/.local/state/ipa-keys/ipa-keys.log` records start-up, the permission state,
 config problems, secure input on and off, tap restarts, and for every chord or
-name the app it went to and the keys sent, with code points. For example:
+name the app it went to and the keys sent. By default it holds no text you
+typed or inserted, only how long it was:
 
 ```
-cycle e2 in com.apple.TextEdit (select mode): Shift-Left x1, type "ɚ" (U+025A)
+name in com.apple.TextEdit (code point mode): Backspace x5, type 1 code point
+cycle e2 in com.apple.TextEdit (select mode): Shift-Left x1, type 1 code point
 ```
+
+To find a problem with a particular symbol, set `debug_log = on` in the
+config. The log then also shows typed names and the text, with code points
+(`type "ɚ" (U+025A)`). Set it back to `off` afterwards. The log folder is
+readable only by you, and the log moves to `ipa-keys.log.old` at 2 MB.
 
 `~/Applications/ipa-keys.app/Contents/MacOS/ipa-keys --check` prints the
 config problems and which physical key each group is on, then exits. It needs

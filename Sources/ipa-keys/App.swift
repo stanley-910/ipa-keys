@@ -154,6 +154,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for w in c.warnings { Log.write("config: \(w)") }
         configWarnings = c.warnings.count
         currentPrefix = c.prefix
+        if c.debugLog != Log.debug { Log.write("debug_log \(c.debugLog ? "on: typed names and text are logged" : "off")") }
+        Log.debug = c.debugLog
         currentChord = c.chord
         Log.write("config: \(c.groups.count) groups, \(c.names.count) names, \(c.warnings.count) problems")
         let lacking = missingDefaults(in: c)
@@ -326,7 +328,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let name = target.localizedName ?? target.bundleIdentifier ?? "the app"
         let send = { [weak self] in
             self?.controller.reset()
-            Log.write("palette \(s.id) in \(target.bundleIdentifier ?? name): type \(Log.show(s.symbol))")
+            Log.write("palette \(s.id) in \(target.bundleIdentifier ?? name): type \(describeText(s.symbol, content: Log.debug))")
             Poster.post([.insert(s.symbol)], note: "palette \(s.id)")
             self?.paletteModel.status = "Typed \(s.glyph) in \(name)"
         }
@@ -351,7 +353,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(s.symbol, forType: .string)
-        Log.write("palette \(s.id): copied \(Log.show(s.symbol)) instead of typing: \(reason)")
+        Log.write("palette \(s.id): copied \(describeText(s.symbol, content: Log.debug)) instead of typing: \(reason)")
         paletteModel.status = "Copied \(s.glyph): \(reason)"
     }
 

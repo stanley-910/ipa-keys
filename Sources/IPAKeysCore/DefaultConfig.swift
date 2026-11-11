@@ -25,6 +25,10 @@ toggle =
 # there. Empty unless you add one, e.g. com.apple.Terminal.
 code_point_apps =
 
+# on: the log also records typed names and the text inserted, to help find
+# a problem. off: it records only what kind of thing happened and how long.
+debug_log = off
+
 # A chord that opens the symbol palette. Empty means none.
 symbols = control+shift+slash
 

@@ -28,8 +28,10 @@ public struct Decision: Equatable, Sendable {
     /// Keep the keystroke from the app.
     public var swallow: Bool
     public var actions: [Action]
-    /// What happened, for the log.
+    /// What happened, for the log. Holds no typed text.
     public var note: String
+    /// What was typed (the name), logged only with debug_log on.
+    public var detail: String? = nil
 
     public static let pass = Decision(swallow: false, actions: [], note: "")
 }
@@ -106,7 +108,7 @@ public final class Engine {
                 let alreadyTyped = max(0, config.prefix.count + name.count - s.count)
                 setContext(String(candidate[..<r.lowerBound]) + text)
                 return Decision(swallow: true, actions: [.backspace(alreadyTyped), .insert(text)],
-                                note: "name \(config.prefix)\(name)")
+                                note: "name", detail: config.prefix + name)
             }
         }
         setContext(candidate)

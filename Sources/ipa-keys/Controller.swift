@@ -174,19 +174,9 @@ final class Controller {
     private func act(_ d: Decision, mode: DeleteMode) {
         let app = frontApp.isEmpty ? "unknown app" : frontApp
         let how = mode == .codePoints ? "code point mode" : mode == .terminal ? "terminal mode" : "select mode"
-        Log.write("\(d.note) in \(app) (\(how)): \(Controller.describe(d.actions))")
+        let detail = Log.debug ? d.detail.map { " " + $0 } ?? "" : ""
+        Log.write("\(d.note)\(detail) in \(app) (\(how)): \(describeActions(d.actions, content: Log.debug))")
         if !d.actions.isEmpty { Poster.post(d.actions, note: d.note) }
-    }
-
-    static func describe(_ actions: [Action]) -> String {
-        if actions.isEmpty { return "nothing to send" }
-        return actions.map { a -> String in
-            switch a {
-            case .backspace(let n): return "Backspace x\(n)"
-            case .selectBack(let n): return "Shift-Left x\(n)"
-            case .insert(let s): return "type \(Log.show(s))"
-            }
-        }.joined(separator: ", ")
     }
 
     static func characters(_ event: CGEvent) -> String {
