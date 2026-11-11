@@ -23,6 +23,13 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private(set) var keymap = KeyMap()
     private let settingsModel = SettingsModel()
     private lazy var settingsWindow = SettingsWindow(model: settingsModel)
+    private let paletteModel = PaletteModel()
+    private lazy var palettePanel: PalettePanel = {
+        let p = PalettePanel(model: paletteModel)
+        p.onEscape = { [weak self] in self?.closePalette() }
+        return p
+    }()
+    private var symbolsItem = NSMenuItem()
 
     private var enabled: Bool {
         get { UserDefaults.standard.object(forKey: "enabled") as? Bool ?? true }
@@ -46,6 +53,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller = Controller(config: config, keymap: keymap, enabled: enabled)
         settingsModel.load(config)
         settingsModel.save = { [weak self] key, value in self?.writeSetting(key, value) }
+        paletteModel.palette = Palette(config)
+        paletteModel.insert = { [weak self] s in self?.insertFromPalette(s) }
+        controller.onSymbols = { [weak self] in self?.symbolsChord() }
         controller.onToggle = { [weak self] on in
             self?.enabled = on
             self?.refresh()
@@ -151,6 +161,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let c = loadConfig()
         controller.setConfig(c)
         settingsModel.load(c)
+        paletteModel.palette = Palette(c)
         refresh()
     }
 
@@ -195,6 +206,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         enabledItem.target = self
         menu.addItem(enabledItem)
         menu.addItem(.separator())
+        symbolsItem = NSMenuItem(title: "Symbols", action: #selector(openSymbols), keyEquivalent: "")
+        symbolsItem.target = self
+        menu.addItem(symbolsItem)
         for (title, action) in [("Settings…", #selector(openSettings)), ("Edit Config", #selector(editConfig)),
                                 ("Reload", #selector(reloadConfig))] {
             let i = NSMenuItem(title: title, action: action, keyEquivalent: "")
@@ -217,6 +231,17 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refresh() {
         enabledItem.state = enabled ? .on : .off
+        // Show the symbols chord beside the item (it works from any app).
+        let sc = settingsModel.config.symbols
+        symbolsItem.keyEquivalent = sc.map { Config.keyNames.values.contains($0.key) || $0.key.count == 1 ? $0.key : "" } ?? ""
+        var mask: NSEvent.ModifierFlags = []
+        if let m = sc?.modifiers {
+            if m.contains(.control) { mask.insert(.control) }
+            if m.contains(.option) { mask.insert(.option) }
+            if m.contains(.shift) { mask.insert(.shift) }
+            if m.contains(.command) { mask.insert(.command) }
+        }
+        symbolsItem.keyEquivalentModifierMask = mask
         var problem: (String, Selector?)?
         if !trusted {
             problem = ("Grant Accessibility…", #selector(openAccessibility))
@@ -251,6 +276,70 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func reloadConfig() { reload(reason: "menu") }
 
     @objc private func openSettings() { settingsWindow.show() }
+
+    // MARK: symbols
+
+    @objc private func openSymbols() { showPalette(focus: false) }
+
+    private func showPalette(focus: Bool) {
+        paletteModel.status = nil
+        if focus {
+            palettePanel.makeKeyAndOrderFront(nil)
+            paletteModel.focusRequest += 1
+        } else {
+            palettePanel.orderFrontRegardless()
+        }
+    }
+
+    /// The symbols chord: open with the cursor in search, or close.
+    private func symbolsChord() {
+        if palettePanel.isVisible { closePalette() } else { showPalette(focus: true) }
+    }
+
+    private func closePalette() {
+        let wasKey = palettePanel.isKeyWindow
+        palettePanel.orderOut(nil)
+        if wasKey { NSWorkspace.shared.frontmostApplication?.activate() }
+    }
+
+    /// Types a symbol from the palette into the app in front, as a chord
+    /// would (a mark joins the letter before it). Falls back to copying.
+    private func insertFromPalette(_ s: PaletteSymbol) {
+        let target = NSWorkspace.shared.frontmostApplication.flatMap { $0.processIdentifier == getpid() ? nil : $0 }
+        guard let target else { return copy(s, because: "no other app is in front") }
+        guard trusted, tap != nil else { return copy(s, because: "Accessibility is not granted") }
+        guard !IsSecureEventInputEnabled() else { return copy(s, because: "secure input is on") }
+        let name = target.localizedName ?? target.bundleIdentifier ?? "the app"
+        let send = { [weak self] in
+            self?.controller.reset()
+            Log.write("palette \(s.id) in \(target.bundleIdentifier ?? name): type \(Log.show(s.symbol))")
+            Poster.post([.insert(s.symbol)], note: "palette \(s.id)")
+            self?.paletteModel.status = "Typed \(s.glyph) in \(name)"
+        }
+        guard palettePanel.isKeyWindow else { return send() }
+        // The search field has the keyboard: hand it back to the app first.
+        target.activate()
+        let start = Date()
+        Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] timer in
+            guard let self else { return timer.invalidate() }
+            let back = !self.palettePanel.isKeyWindow && NSWorkspace.shared.frontmostApplication == target
+            if back {
+                timer.invalidate()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: send)
+            } else if Date().timeIntervalSince(start) > 0.6 {
+                timer.invalidate()
+                self.copy(s, because: "\(name) did not take the keyboard back")
+            }
+        }
+    }
+
+    private func copy(_ s: PaletteSymbol, because reason: String) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(s.symbol, forType: .string)
+        Log.write("palette \(s.id): copied \(Log.show(s.symbol)) instead of typing: \(reason)")
+        paletteModel.status = "Copied \(s.glyph): \(reason)"
+    }
 
     /// Stops reading keys while a shortcut field is recording.
     func pauseKeys(_ paused: Bool) { controller.isPaused = paused }

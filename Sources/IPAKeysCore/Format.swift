@@ -53,7 +53,7 @@ extension Config {
     }
 
     /// The shortcut settings, by their name in the file.
-    public var shortcuts: [(String, Shortcut?)] { [("toggle", toggle)] }
+    public var shortcuts: [(String, Shortcut?)] { [("toggle", toggle), ("symbols", symbols)] }
 
     /// Problems with a shortcut for `setting`: it needs a real modifier,
     /// and must not take a group's chord or another shortcut.

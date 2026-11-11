@@ -12,9 +12,18 @@ enum Snapshot {
         let settings = SettingsModel()
         settings.load(config)
         settings.problem = "Toggle: ⌃⇧E is the chord for group E"
+        let palette = PaletteModel()
+        palette.palette = Palette(config)
+        let size = NSSize(width: 980, height: 640)
         for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
             render(SettingsView(model: settings), appearance, to: "\(dir)/settings-\(name).png")
+            palette.query = ""
+            palette.hovered = palette.palette.tiles.first { $0.key == "5" }?.symbols.last
+            render(PaletteView(model: palette), appearance, size: size, to: "\(dir)/palette-\(name).png")
         }
+        palette.query = "schwa"
+        palette.hovered = nil
+        render(PaletteView(model: palette), .aqua, size: size, to: "\(dir)/palette-search.png")
     }
 
     static func render<V: View>(_ view: V, _ appearance: NSAppearance.Name, size: NSSize? = nil, to path: String) {

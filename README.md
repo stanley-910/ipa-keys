@@ -14,8 +14,8 @@ works, plus typed names. It is one small menu bar app with no other tools needed
   name is complete: `;schwa` gives ə, `;e1` gives ə (the first symbol under
   E), and `u;extrashort` gives ŭ.
 
-The menu bar item (ə) has **Enabled**, **Settings…**, **Edit Config**, **Reload**, **Update…** and
-**Quit**.
+The menu bar item (ə) has **Enabled**, **Symbols**, **Settings…**, **Edit Config**, **Reload**,
+**Update…** and **Quit**.
 It greys out when ipa-keys is off, has no permission, or a password field has
 the keyboard.
 
@@ -71,10 +71,34 @@ ipa-keys needs **Accessibility** to read keys and type symbols:
 If a rebuild was signed ad hoc and keys stop working, remove ipa-keys from
 the list and add it again.
 
+## Symbols
+
+**Symbols** in the menu, or **Control+Shift+/** from any app, opens a palette
+laid out like the website's keyboard. There is one tile per chord key: the key
+badge, then its symbols in the order the chord cycles through them. The
+fourth symbol on a tile takes four presses. Below the tiles are the symbols
+that have names but no chord.
+
+- Hover a symbol to see its name, its chord with the number of presses
+  (`Ctrl+Shift+5 ×5`) and its typed names, in a tooltip and in the bar at
+  the bottom.
+- Click a symbol to type it into the app you were using. A mark joins the
+  letter before the cursor, as with the chord. The palette floats above other
+  windows and doesn't take the keyboard away from the app.
+- Type in the search box to narrow the tiles by name (`schwa`, `;e2`), key
+  (`e`, `comma`), symbol (`ə`) or Unicode name (`breve`). Return types the
+  first match. Escape or Control+Shift+/ closes the palette.
+- If ipa-keys can't type into the app (no Accessibility, a password field,
+  or no other app in front), it copies the symbol instead and says so at the
+  top of the palette. Paste it with ⌘V.
+
+The palette always shows the current config, including your edits. Change
+its shortcut in Settings, or set `symbols =` (empty to turn it off).
+
 ## Settings
 
-**Settings…** in the menu changes the chord, the name prefix and the toggle
-shortcut. Click a shortcut box and press the keys; for the chord, hold the
+**Settings…** in the menu changes the chord, the name prefix, the toggle
+shortcut and the Symbols shortcut. Click a shortcut box and press the keys; for the chord, hold the
 modifiers and press any key. Escape cancels. Each change is written into
 `config.txt` at once, changing only that line, so your comments and
 everything else in the file stay as they are.
@@ -95,6 +119,8 @@ chord = control+shift
 prefix = ;
 # e.g. control+shift+escape; empty means none
 toggle =
+# opens the symbol palette; empty means none
+symbols = control+shift+slash
 # see "How cycling deletes"
 backspace_apps = com.apple.Terminal ...
 

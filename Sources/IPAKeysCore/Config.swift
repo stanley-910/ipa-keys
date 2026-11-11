@@ -26,14 +26,20 @@ public struct Config: Sendable {
     public var chord: Modifiers = [.control, .shift]
     public var prefix = ";"
     public var toggle: Shortcut?
+    /// Opens the symbol palette. Control+Shift+/ unless the file says otherwise.
+    public var symbols: Shortcut? = Shortcut(modifiers: [.control, .shift], key: "/")
     /// Bundle ids where cycling deletes with Backspace instead of selecting.
     public var backspaceApps: Set<String> = []
     /// Group key (one character, e.g. "e" or ",") to its symbols, in order.
     public var groups: [String: [String]] = [:]
     /// Group keys in file order.
     public var groupOrder: [String] = []
+    /// The comment line just above a group, if any ("clicks (k for click)").
+    public var groupNotes: [String: String] = [:]
     /// Name (without prefix) to text, including the derived ones like "e1".
     public var names: [String: String] = [:]
+    /// Names written in [names], in file order.
+    public var nameOrder: [String] = []
     /// Problems found while reading, one line each, for the log.
     public var warnings: [String] = []
 
@@ -61,10 +67,16 @@ public struct Config: Sendable {
         var c = Config()
         var section = ""
         var explicitNames: [(String, String, Int)] = []
+        var comment: String?
         for (n, raw) in text.components(separatedBy: .newlines).enumerated() {
             let lineNo = n + 1
             let line = raw.trimmingCharacters(in: .whitespaces)
-            if line.isEmpty || line.hasPrefix("#") { continue }
+            if line.isEmpty { comment = nil; continue }
+            if line.hasPrefix("#") {
+                comment = line.drop(while: { $0 == "#" }).trimmingCharacters(in: .whitespaces)
+                continue
+            }
+            defer { comment = nil }
             if line.hasPrefix("[") && line.hasSuffix("]") && line.count > 2 {
                 section = String(line.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces).lowercased()
                 if !["settings", "groups", "names"].contains(section) {
@@ -80,7 +92,9 @@ public struct Config: Sendable {
             let value = line[line.index(after: eq)...].trimmingCharacters(in: .whitespaces)
             switch section {
             case "settings": c.setting(key.lowercased(), value, line: lineNo)
-            case "groups": c.group(key, value, line: lineNo)
+            case "groups":
+                c.group(key, value, line: lineNo)
+                if let k = Config.keyChar(key), let comment, !comment.isEmpty { c.groupNotes[k] = comment }
             case "names":
                 if key.isEmpty || key.contains(where: \.isWhitespace) {
                     c.warnings.append("line \(lineNo): a name must be one word: \"\(key)\"")
@@ -104,8 +118,14 @@ public struct Config: Sendable {
                 c.warnings.append("line \(lineNo): \(name) is already a name (from [groups] or earlier); this one wins")
             }
             c.names[name] = text
+            if !c.nameOrder.contains(name) { c.nameOrder.append(name) }
         }
         c.checkNames()
+        for (setting, s) in [("toggle", c.toggle), ("symbols", c.symbols)] {
+            if let s, s.modifiers == c.chord, c.groups[s.key] != nil {
+                c.warnings.append("\(setting) uses the chord with \(s.key), so that group cannot be typed")
+            }
+        }
         return c
     }
 
@@ -129,6 +149,13 @@ public struct Config: Sendable {
                 toggle = s
             } else {
                 warnings.append("line \(line): toggle \"\(value)\" is not like control+shift+escape; no toggle chord")
+            }
+        case "symbols":
+            if value.isEmpty { symbols = nil; return }
+            if let s = Config.parseShortcut(value) {
+                symbols = s
+            } else {
+                warnings.append("line \(line): symbols \"\(value)\" is not like control+shift+slash; using control+shift+slash")
             }
         case "backspace_apps":
             backspaceApps = Set(value.split(whereSeparator: \.isWhitespace).map(String.init))

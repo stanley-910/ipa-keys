@@ -19,6 +19,8 @@ final class Controller {
     private var afterOption = false
     /// Run on main when the toggle chord flips Enabled.
     var onToggle: ((Bool) -> Void)?
+    /// Run on main when the symbols chord is pressed.
+    var onSymbols: (() -> Void)?
 
     init(config: Config, keymap: KeyMap, enabled: Bool) {
         self.config = config
@@ -102,6 +104,14 @@ final class Controller {
                 let on = enabled
                 Log.write("toggle chord: \(on ? "enabled" : "disabled")")
                 DispatchQueue.main.async { self.onToggle?(on) }
+            }
+            return true
+        }
+        if let t = config.symbols, keymap.code(for: t.key) == code, mods == t.modifiers {
+            swallowedUps.insert(code)
+            if !repeating {
+                engine.reset()
+                DispatchQueue.main.async { self.onSymbols?() }
             }
             return true
         }

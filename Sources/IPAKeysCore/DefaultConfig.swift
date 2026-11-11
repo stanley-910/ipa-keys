@@ -20,6 +20,9 @@ prefix = ;
 # Empty means none (use the menu bar item).
 toggle =
 
+# A chord that opens the symbol palette. Empty means none.
+symbols = control+shift+slash
+
 # Apps where cycling a symbol uses Backspace instead of selecting it
 # (terminals, where Shift+Left does not select). Bundle ids, space-separated.
 backspace_apps = com.apple.Terminal com.googlecode.iterm2 com.mitchellh.ghostty net.kovidgoyal.kitty io.alacritty org.alacritty com.github.wez.wezterm dev.warp.Warp-Stable co.zeit.hyper

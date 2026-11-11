@@ -113,3 +113,27 @@ struct ConfigEditorTests {
         #expect(Config.parse(after.joined(separator: "\n")).chord == [.control, .option])
     }
 }
+
+struct SymbolsSettingTests {
+    @Test func defaultsToControlShiftSlash() {
+        #expect(ConfigTests.defaults.symbols == Shortcut([.control, .shift], "/"))
+        // A file from before the setting existed still gets it.
+        #expect(Config.parse("[groups]\ne = ə\n").symbols == Shortcut([.control, .shift], "/"))
+    }
+
+    @Test func emptyTurnsItOff() {
+        #expect(Config.parse("[settings]\nsymbols =\n").symbols == nil)
+    }
+
+    @Test func clashWithAGroupIsReported() {
+        let c = Config.parse("[groups]\nslash = x\n")
+        #expect(c.warnings == ["symbols uses the chord with /, so that group cannot be typed"])
+    }
+
+    @Test func settingsRejectASecondUse() {
+        var c = ConfigTests.defaults
+        c.toggle = Shortcut([.control, .shift], "escape")
+        #expect(c.shortcutProblem(Shortcut([.control, .shift], "escape"), for: "symbols") == "Already used for toggle")
+        #expect(c.shortcutProblem(Shortcut([.control, .shift], "escape"), for: "toggle") == nil)
+    }
+}

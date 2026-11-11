@@ -54,6 +54,7 @@ struct SettingsView: View {
                     .onChange(of: prefixFocused) { _, focused in if !focused { model.setPrefix() } }
             }
             shortcutRow("Toggle", "toggle", model.config.toggle)
+            shortcutRow("Symbols", "symbols", model.config.symbols)
             if let p = model.problem {
                 Text(p).foregroundStyle(.red)
             }
