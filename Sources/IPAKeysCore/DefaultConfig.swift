@@ -53,11 +53,11 @@ s = ʃ ʂ
 t = θ t͡ʃ t͡s ʈ
 u = ʊ ʉ
 v = ʌ ʋ
-w = ɯ ʍ
+w = ɯ ʍ ɰ
 x = χ
 y = ɣ ʎ ʏ ɤ
 z = ʒ ʐ ʑ
-2 = ʔ ʕ
+2 = ʔ ʕ ʡ ʢ
 q = ˈ ˌ
 f = ◌͡ ‿
 
@@ -84,6 +84,10 @@ equals = ⁿ ˡ ◌̚ ᵐ ᵑ
 backslash = ◌͜
 # superscripts (^ is on this key)
 6 = ʰ ʷ ʲ ˠ ˤ ʱ ˀ ᵊ
+# more superscripts (8 is next to 6)
+8 = ʳ ᵗ ᵝ
+# rules: becomes, null
+9 = → ∅
 # tone letters, extra-high to extra-low
 1 = ˥ ˦ ˧ ˨ ˩
 # level tone marks, extra-high to extra-low
@@ -284,9 +288,16 @@ murmuraspirated = ʱ
 supm = ᵐ
 supeng = ᵑ
 supschwa = ᵊ
+supr = ʳ
+supt = ᵗ
+supbeta = ᵝ
 
 # Contour tones
 highrising = ◌᷄
 lowrising = ◌᷅
 risingfalling = ◌᷈
+
+# Rules
+becomes = →
+null = ∅
 """#

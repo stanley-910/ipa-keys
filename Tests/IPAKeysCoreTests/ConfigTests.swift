@@ -31,7 +31,7 @@ struct ConfigTests {
         #expect(g["."] == ["ː", "ˑ", "\u{306}"])
         #expect(g[","]?.first == "\u{325}")
         #expect(g["1"] == ["˥", "˦", "˧", "˨", "˩"])
-        for key in ["k", "'", ".", "`", ",", "[", "]", "-", "=", "\\", "6", "1", "4", "5", "7"] {
+        for key in ["k", "'", ".", "`", ",", "[", "]", "-", "=", "\\", "6", "8", "9", "1", "4", "5", "7"] {
             #expect(g[key] != nil, "missing group \(key)")
         }
     }
@@ -59,9 +59,9 @@ struct ConfigTests {
         #expect(n["k1"] == "ʘ")
         #expect(n[",1"] == "\u{325}")
         #expect(n["tone5"] == "˥")
-        // 157 from the table plus one per group symbol.
+        // 162 written out plus one per group symbol.
         let derived = Self.defaults.groups.values.map(\.count).reduce(0, +)
-        #expect(n.count == 157 + derived)
+        #expect(n.count == 162 + derived)
     }
 
     @Test func parsesHandWrittenFile() {

@@ -73,3 +73,5 @@ case "$STATUS" in
   *) echo "It did not report in yet; check the menu bar for ə, or the log: $LOG" ;;
 esac
 echo "Your settings file was not changed."
+# New default symbols never reach an existing settings file; list them.
+"$APP/Contents/MacOS/ipa-keys" --missing-defaults 2>/dev/null || true

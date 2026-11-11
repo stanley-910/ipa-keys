@@ -18,6 +18,19 @@ if CommandLine.arguments.dropFirst().first == "--check" {
     exit(config.warnings.isEmpty ? 0 : 1)
 }
 
+/// `ipa-keys --missing-defaults`: list what the built-in defaults have that
+/// the config file lacks (new symbols from an update), as lines to paste.
+if CommandLine.arguments.dropFirst().first == "--missing-defaults" {
+    guard let text = try? String(contentsOf: App.configURL, encoding: .utf8) else { exit(0) }
+    let lines = missingDefaults(in: Config.parse(text))
+    if !lines.isEmpty {
+        print("The default config has \(lines.count) things yours lacks. To add any, open Edit Config")
+        print("and paste the line under the section shown (your own lines stay as they are):")
+        for l in lines { print("  " + l) }
+    }
+    exit(0)
+}
+
 let app = NSApplication.shared
 let delegate = App()
 app.delegate = delegate

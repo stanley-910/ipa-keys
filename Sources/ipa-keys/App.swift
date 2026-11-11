@@ -129,6 +129,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         currentPrefix = c.prefix
         currentChord = c.chord
         Log.write("config: \(c.groups.count) groups, \(c.names.count) names, \(c.warnings.count) problems")
+        let lacking = missingDefaults(in: c)
+        if !lacking.isEmpty {
+            Log.write("config lacks \(lacking.count) default groups or names; list them with: \(Bundle.main.executablePath ?? "ipa-keys") --missing-defaults")
+        }
         return c
     }
 

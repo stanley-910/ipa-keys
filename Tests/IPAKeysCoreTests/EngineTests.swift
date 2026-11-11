@@ -18,7 +18,7 @@ struct EngineTests {
     @Test func keyWithoutGroupPassesAndResets() {
         let e = engine()
         _ = type(e, "ab")
-        #expect(e.chord(key: "8", mode: .select) == nil)
+        #expect(e.chord(key: "/", mode: .select) == nil)
         #expect(e.context == "")
     }
 

@@ -36,6 +36,8 @@ the keyboard.
 2. Read the last lines in the window. They say which version is now running,
    or, in plain words, why the update stopped. Your settings file is never
    changed by an update.
+3. If a new version adds symbols, the window lists the lines your settings
+   file lacks. To add any of them, paste them in with **Edit Config**.
 
 ## Install details
 
