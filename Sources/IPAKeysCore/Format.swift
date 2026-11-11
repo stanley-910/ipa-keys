@@ -121,3 +121,24 @@ public enum ConfigEditor {
         return lines.joined(separator: "\n")
     }
 }
+
+extension ConfigEditor {
+    public struct KeptChanging: Error {}
+
+    /// Sets one setting in a file that an editor may be saving at the same
+    /// time. Reads, edits, and reads again just before writing; if the file
+    /// changed meanwhile, the edit is made again on the newer text, so a
+    /// save in between is kept. `write` gets the new text and the text it
+    /// replaces (for a backup). Gives up after `attempts` changes in a row.
+    public static func update(_ key: String, to value: String, attempts: Int = 3,
+                              read: () throws -> String, write: (_ new: String, _ old: String) throws -> Void) throws {
+        for _ in 0..<attempts {
+            let before = try read()
+            let edited = set(key, to: value, in: before)
+            guard try read() == before else { continue }
+            try write(edited, before)
+            return
+        }
+        throw KeptChanging()
+    }
+}

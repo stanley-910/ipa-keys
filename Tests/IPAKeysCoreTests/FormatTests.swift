@@ -165,3 +165,39 @@ struct LogTextTests {
         #expect(Config.parse("[settings]\ndebug_log = maybe\n").warnings.count == 1)
     }
 }
+
+struct ConfigUpdateTests {
+    /// An editor saves a new group while Settings is changing the chord:
+    /// the chord change is made on the editor's version, nothing is lost.
+    @Test func aSaveInBetweenIsKept() throws {
+        var file = "[settings]\nchord = control+shift\n[groups]\ne = ə\n"
+        var reads = 0
+        var backup: String?
+        try ConfigEditor.update("chord", to: "option", read: {
+            reads += 1
+            if reads == 2 { file += "k = ʘ\n" }  // saved between read and write
+            return file
+        }, write: { new, old in
+            backup = old
+            file = new
+        })
+        #expect(file == "[settings]\nchord = option\n[groups]\ne = ə\nk = ʘ\n")
+        #expect(backup == "[settings]\nchord = control+shift\n[groups]\ne = ə\nk = ʘ\n")
+        #expect(reads == 4)
+    }
+
+    @Test func quietFileIsWrittenOnce() throws {
+        var file = "[settings]\nprefix = ;\n"
+        var writes = 0
+        try ConfigEditor.update("prefix", to: "::", read: { file }, write: { new, _ in file = new; writes += 1 })
+        #expect(file == "[settings]\nprefix = ::\n")
+        #expect(writes == 1)
+    }
+
+    @Test func givesUpIfItNeverSettles() {
+        var n = 0
+        #expect(throws: ConfigEditor.KeptChanging.self) {
+            try ConfigEditor.update("prefix", to: "::", read: { n += 1; return "x\(n)" }, write: { _, _ in Issue.record("wrote") })
+        }
+    }
+}

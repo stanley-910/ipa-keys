@@ -370,9 +370,17 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func writeSetting(_ key: String, _ value: String) -> String? {
         let url = App.configURL
         if !FileManager.default.fileExists(atPath: url.path) { _ = loadConfig() }
+        let backup = url.appendingPathExtension("bak")
         do {
-            let text = try String(contentsOf: url, encoding: .utf8)
-            try ConfigEditor.set(key, to: value, in: text).write(to: url, atomically: true, encoding: .utf8)
+            // If an editor saves while this runs, the edit is redone on its
+            // version; the version replaced is kept in config.txt.bak.
+            try ConfigEditor.update(key, to: value, read: { try String(contentsOf: url, encoding: .utf8) }) { new, old in
+                try old.write(to: backup, atomically: true, encoding: .utf8)
+                try new.write(to: url, atomically: true, encoding: .utf8)
+            }
+        } catch is ConfigEditor.KeptChanging {
+            Log.write("settings: config.txt kept changing; \(key) not saved")
+            return "Not saved: config.txt is being edited. Try again."
         } catch {
             Log.write("settings: could not write \(key) to \(url.path): \(error.localizedDescription)")
             return "Could not save: \(error.localizedDescription)"

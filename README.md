@@ -105,7 +105,9 @@ its shortcut in Settings, or set `symbols =` (empty to turn it off).
 shortcut and the Symbols shortcut. Click a shortcut box and press the keys; for the chord, hold the
 modifiers and press any key. Escape cancels. Each change is written into
 `config.txt` at once, changing only that line, so your comments and
-everything else in the file stay as they are.
+everything else in the file stay as they are. If the file is saved from an
+editor at the same moment, the change is made on the saved version. The
+version before each change is kept in `config.txt.bak`.
 
 ## Config
 
