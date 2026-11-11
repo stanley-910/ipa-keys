@@ -67,54 +67,81 @@ struct PaletteView: View {
     @ObservedObject var model: PaletteModel
     @FocusState private var searchFocused: Bool
 
+    // The bodies below are kept small, with the types written out: one long
+    // expression here stopped an older compiler ("unable to type-check this
+    // expression in reasonable time").
+    private var tiles: [PaletteTile] {
+        guard let matches: Set<String> = model.matches else { return model.palette.tiles }
+        var out: [PaletteTile] = []
+        for tile in model.palette.tiles {
+            let hit: Bool = tile.symbols.contains { (s: PaletteSymbol) -> Bool in matches.contains(s.id) }
+            if hit { out.append(tile) }
+        }
+        return out
+    }
+
+    private var unchorded: [PaletteSymbol] {
+        guard let matches: Set<String> = model.matches else { return model.palette.unchorded }
+        return model.palette.unchorded.filter { (s: PaletteSymbol) -> Bool in matches.contains(s.id) }
+    }
+
     var body: some View {
-        let matches = model.matches
-        let tiles = model.palette.tiles.filter { t in matches.map { m in t.symbols.contains { m.contains($0.id) } } ?? true }
-        let unchorded = model.palette.unchorded.filter { matches?.contains($0.id) ?? true }
         VStack(spacing: 0) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search by name, key or symbol", text: $model.query)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 15))
-                    .focused($searchFocused)
-                    .onSubmit { model.insertFirst() }
-                if let status = model.status {
-                    Text(status).font(.callout).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
+            searchBar
             Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    FlowLayout(spacing: 6) {
-                        ForEach(tiles) { tile in
-                            TileView(tile: tile, matches: matches, model: model)
-                        }
-                    }
-                    if !unchorded.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("No chord, type the name").font(.headline)
-                            FlowLayout(spacing: 2) {
-                                ForEach(unchorded) { s in SymbolCell(symbol: s, highlighted: false, dimmed: false, model: model) }
-                            }
-                            .padding(4)
-                            .background(TileBackground())
-                        }
-                    }
-                    if tiles.isEmpty && unchorded.isEmpty {
-                        Text("No match").foregroundStyle(.secondary).frame(maxWidth: .infinity)
-                    }
-                }
-                .padding(10)
-            }
+            ScrollView { grid }
             Divider()
             InfoBar(symbol: model.hovered, palette: model.palette)
         }
         .frame(minWidth: 480, minHeight: 320)
         .background(Color(nsColor: .windowBackgroundColor))
         .onChange(of: model.focusRequest) { _, _ in searchFocused = true }
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Search by name, key or symbol", text: $model.query)
+                .textFieldStyle(.plain)
+                .font(.system(size: 15))
+                .focused($searchFocused)
+                .onSubmit { model.insertFirst() }
+            if let status = model.status {
+                Text(status).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+    }
+
+    private var grid: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            FlowLayout(spacing: 6) {
+                ForEach(tiles) { tile in
+                    TileView(tile: tile, matches: model.matches, model: model)
+                }
+            }
+            if !unchorded.isEmpty {
+                unchordedSection
+            }
+            if tiles.isEmpty && unchorded.isEmpty {
+                Text("No match").foregroundStyle(.secondary).frame(maxWidth: .infinity)
+            }
+        }
+        .padding(10)
+    }
+
+    private var unchordedSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("No chord, type the name").font(.headline)
+            FlowLayout(spacing: 2) {
+                ForEach(unchorded) { s in
+                    SymbolCell(symbol: s, highlighted: false, dimmed: false, model: model)
+                }
+            }
+            .padding(4)
+            .background(TileBackground())
+        }
     }
 }
 
@@ -131,23 +158,55 @@ struct TileView: View {
     let matches: Set<String>?
     @ObservedObject var model: PaletteModel
 
+    private var badgeHelp: String {
+        var text: String = model.palette.chord.words
+        text += "+"
+        text += tile.label
+        if let note: String = tile.note {
+            text += ": "
+            text += note
+        }
+        return text
+    }
+
+    private func matched(_ s: PaletteSymbol) -> Bool {
+        guard let matches else { return false }
+        return matches.contains(s.id)
+    }
+
+    private func dimmed(_ s: PaletteSymbol) -> Bool {
+        guard let matches else { return false }
+        return !matches.contains(s.id)
+    }
+
     var body: some View {
         HStack(spacing: 2) {
-            Text(tile.label)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .frame(minWidth: 22, minHeight: 22)
-                .padding(.horizontal, 2)
-                .background(RoundedRectangle(cornerRadius: 5).fill(Color.accentColor.opacity(0.18)))
-                .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.accentColor.opacity(0.5)))
-                .padding(.trailing, 4)
-                .help(model.palette.chord.words + "+" + tile.label + (tile.note.map { ": " + $0 } ?? ""))
+            KeyBadge(label: tile.label, help: badgeHelp)
             ForEach(tile.symbols) { s in
-                SymbolCell(symbol: s, highlighted: matches?.contains(s.id) == true,
-                           dimmed: matches.map { !$0.contains(s.id) } ?? false, model: model)
+                SymbolCell(symbol: s, highlighted: matched(s), dimmed: dimmed(s), model: model)
             }
         }
         .padding(4)
         .background(TileBackground())
+    }
+}
+
+/// The key to hold the chord with.
+struct KeyBadge: View {
+    let label: String
+    let help: String
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 5)
+        let tint: Color = Color.accentColor
+        return Text(label)
+            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .frame(minWidth: 22, minHeight: 22)
+            .padding(.horizontal, 2)
+            .background(shape.fill(tint.opacity(0.18)))
+            .overlay(shape.stroke(tint.opacity(0.5)))
+            .padding(.trailing, 4)
+            .help(help)
     }
 }
 
@@ -170,10 +229,19 @@ struct SymbolCell: View {
                 .background(RoundedRectangle(cornerRadius: 6).fill(fill))
         }
         .buttonStyle(.plain)
-        .opacity(dimmed ? 0.3 : 1)
-        .help(model.palette.tooltip(symbol))
-        .onHover { h in
-            if h { model.hovered = symbol } else if model.hovered == symbol { model.hovered = nil }
+        .opacity(opacity)
+        .help(tooltip)
+        .onHover { (inside: Bool) in hover(inside) }
+    }
+
+    private var opacity: Double { dimmed ? 0.3 : 1.0 }
+    private var tooltip: String { model.palette.tooltip(symbol) }
+
+    private func hover(_ inside: Bool) {
+        if inside {
+            model.hovered = symbol
+        } else if model.hovered == symbol {
+            model.hovered = nil
         }
     }
 
@@ -197,13 +265,13 @@ struct InfoBar: View {
                     Text(s.unicodeName).font(.callout)
                     HStack(spacing: 12) {
                         if let c = palette.chordText(s) { Text(c).fontWeight(.medium) }
-                        Text(s.names.map { palette.prefix + $0 }.joined(separator: "  "))
+                        Text(typedNames(s))
                             .font(.system(.callout, design: .monospaced))
                             .foregroundStyle(.secondary)
                     }
                 }
             } else {
-                Text("Click a symbol to type it. Hold \(palette.chord.words) and press the key; press again for the next one.")
+                Text(hint)
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -211,6 +279,17 @@ struct InfoBar: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 54)
+    }
+
+    private func typedNames(_ s: PaletteSymbol) -> String {
+        var parts: [String] = []
+        for name in s.names { parts.append(palette.prefix + name) }
+        return parts.joined(separator: "  ")
+    }
+
+    private var hint: String {
+        let chord: String = palette.chord.words
+        return "Click a symbol to type it. Hold " + chord + " and press the key; press again for the next one."
     }
 }
 

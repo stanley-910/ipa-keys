@@ -17,6 +17,7 @@ elif has_identity ipa-keys-dev; then IDENTITY=ipa-keys-dev
 else IDENTITY=dictate-dev; fi
 
 mkdir -p dist
+echo "building (the first time takes a few minutes)"
 if ! swift build -c release >dist/build.log 2>&1; then
   tail -20 dist/build.log >&2
   echo "build failed (full output: $ROOT/dist/build.log)" >&2

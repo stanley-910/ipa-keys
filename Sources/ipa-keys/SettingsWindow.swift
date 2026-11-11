@@ -40,7 +40,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             row("Chord") {
-                ShortcutField(text: model.config.chord.glyphs + " + key", modifiersOnly: true) { m, _ in model.setChord(m) }
+                ShortcutField(text: chordText, modifiersOnly: true) { m, _ in model.setChord(m) }
                     .frame(width: 180, height: 24)
             }
             row("Prefix") {
@@ -63,6 +63,11 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 440)
         .fixedSize()
+    }
+
+    private var chordText: String {
+        let glyphs: String = model.config.chord.glyphs
+        return glyphs + " + key"
     }
 
     private func row<C: View>(_ label: String, @ViewBuilder _ content: () -> C) -> some View {
