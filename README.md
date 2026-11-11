@@ -80,13 +80,18 @@ defaults back, delete the file and choose Reload. The built-in copy is in
 
 ```
 [settings]
-chord = control+shift        # any of control shift option command
-prefix = ;                   # starts a typed name
-toggle =                     # e.g. control+shift+escape; empty = none
-backspace_apps = com.apple.Terminal ...   # see "How cycling deletes"
+# any of control shift option command
+chord = control+shift
+# starts a typed name
+prefix = ;
+# e.g. control+shift+escape; empty means none
+toggle =
+# see "How cycling deletes"
+backspace_apps = com.apple.Terminal ...
 
 [groups]
-e = ə ɚ ɵ                    # key = symbols, in cycling order
+# key = symbols, in cycling order
+e = ə ɚ ɵ
 comma = ◌̥ ◌̊ ◌̬ ◌̤ ◌̰
 
 [names]
@@ -94,7 +99,8 @@ schwa = ə
 extrashort = ◌̆
 ```
 
-- Lines starting with `#` are comments.
+- Lines starting with `#` are comments. A `#` after a value is part of the
+  value, so put comments on their own line.
 - A dotted circle **◌** in front of a combining mark only makes the mark
   visible in the file. It is removed when the file is read.
 - Group keys are letters and digits, or these names for other keys: `grave`
@@ -128,13 +134,16 @@ the site:
 | `=` | release: nasal ⁿ, lateral ˡ, unreleased ◌̚, prenasal ᵐ ᵑ |
 | `\` | tie below ◌͜ |
 | `6` | superscripts ʰ ʷ ʲ ˠ ˤ ʱ ˀ ᵊ (^ is on this key) |
+| `8` | more superscripts ʳ ᵗ ᵝ |
+| `9` | rules: becomes →, null ∅ |
 | `1` | tone letters ˥ ˦ ˧ ˨ ˩ |
 | `4` | level tone marks ◌̋ ◌́ ◌̄ ◌̀ ◌̏ |
 | `5` | contour tone marks ◌̌ ◌̂ ◌᷄ ◌᷅ ◌᷈ |
 | `7` | intonation ↓ ↑ ↗ ↘ ‖ |
 
-A few symbols the site doesn't put on a key have a name but no chord: ɡ ʙ ⱱ
-ɰ ʄ ʛ ʢ ʡ ɺ ɘ ɞ ɶ and the ligatures ʧ ʤ ʦ ʣ ʨ ʥ.
+`w` and `2` also have the site's extra symbols ɰ and ʡ ʢ. A few symbols the
+site doesn't put on a key have a name but no chord: ɡ ʙ ⱱ ʄ ʛ ɺ ɘ ɞ ɶ and the
+ligatures ʧ ʤ ʦ ʣ ʨ ʥ.
 
 ## How cycling deletes
 
