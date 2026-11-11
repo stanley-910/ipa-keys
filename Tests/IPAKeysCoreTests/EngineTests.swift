@@ -198,3 +198,17 @@ struct EngineTests {
         #expect(type(e, ";schwa").last?.actions == [.backspace(5), .insert("ə")])
     }
 }
+
+struct ChunkTests {
+    @Test func shortTextIsOneChunk() {
+        #expect(keyEventChunks("d\u{361}ʒ") == ["d\u{361}ʒ"])
+    }
+
+    @Test func longTextSplitsBetweenLetters() {
+        let text = String(repeating: "u\u{306}", count: 15)  // 30 units
+        let chunks = keyEventChunks(text)
+        #expect(chunks.count == 2)
+        #expect(chunks.allSatisfy { $0.utf16.count <= 20 && $0.unicodeScalars.first == "u" })
+        #expect(chunks.joined() == text)
+    }
+}
