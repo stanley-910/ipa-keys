@@ -49,7 +49,7 @@ BEFORE="$(git rev-parse --short HEAD)"
 git pull --ff-only --quiet || fail "git could not move forward to the latest version (see the message above)."
 AFTER="$(git rev-parse --short HEAD)"
 if [ "$BEFORE" = "$AFTER" ]; then echo "Already have the latest code ($AFTER)."
-else echo "Downloaded $BEFORE -> $AFTER:"; git log --format='  %s' "$BEFORE..$AFTER"; fi
+else echo "Downloaded $BEFORE -> $AFTER:"; git --no-pager log --format='  %s' "$BEFORE..$AFTER"; fi
 
 [ "${IPA_KEYS_NO_INSTALL:-}" = 1 ] && { echo "(not installing: IPA_KEYS_NO_INSTALL=1)"; exit 0; }
 
